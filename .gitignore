@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# EF / local db
+*.mdf
+*.ldf
+
+# Node / Angular
+client/node_modules/
+client/dist/
+client/.angular/
+npm-debug.log*
+
+# Env / secrets
+appsettings.*.local.json
+.env
+
+# OS
+Thumbs.db
+.DS_Store
