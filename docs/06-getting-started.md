@@ -55,6 +55,20 @@ npm start
 - Godowns (list / create / edit / delete).
 - Users (list / create, assign roles).
 
+## What works in Phase 1 (Inventory & Masters)
+- **Categories** & **Units** (CRUD). Common units and steel categories are seeded.
+- **Items** (CRUD): steel attributes, default purchase/sale rates, reorder level, and
+  secondary units with conversion factors (weight ↔ piece).
+- **Customers** & **Suppliers** (CRUD) with opening balances.
+- **Stock on hand**: quantity + weighted-average value per item/godown, low-stock indicator,
+  total stock value KPIs.
+- **Opening stock** entry and per-item **stock movement** ledger.
+- **Stock adjustments** (increase/decrease) with auto-numbered documents.
+
+### API endpoints added in Phase 1
+`GET/POST/PUT/DELETE` on `categories`, `units`, `items`, `customers`, `suppliers`; and
+`stock/levels`, `stock/movements/{itemId}`, `stock/opening`, `stock/adjustments`.
+
 ## Database
 
 Connection string (in `appsettings.json`):
@@ -72,4 +86,4 @@ dotnet ef migrations add <Name> --project src/AlHaram.Infrastructure --startup-p
 Migrations are applied automatically at API startup.
 
 ## Next phase
-See [05-development-plan.md](05-development-plan.md) → **Phase 1: Inventory & Masters**.
+See [05-development-plan.md](05-development-plan.md) → **Phase 2: Sales & Receivables**.

@@ -9,6 +9,11 @@ interface NavItem {
   disabled?: boolean;
 }
 
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
 @Component({
   selector: 'app-shell',
   standalone: true,
@@ -17,7 +22,7 @@ interface NavItem {
     <div class="layout">
       <aside class="sidebar">
         <div class="brand">
-          <div class="logo">AH</div>
+          <img class="logo" src="/images/logo.png" alt="Al Haram Steel" />
           <div class="brand-text">
             <strong>Al-Haram ERP</strong>
             <span>Steel &amp; Construction</span>
@@ -25,14 +30,17 @@ interface NavItem {
         </div>
 
         <nav>
-          @for (item of nav; track item.path) {
-            <a [routerLink]="item.disabled ? null : item.path"
-               routerLinkActive="active"
-               [class.disabled]="item.disabled">
-              <span class="ico">{{ item.icon }}</span>
-              <span>{{ item.label }}</span>
-              @if (item.disabled) { <span class="soon">soon</span> }
-            </a>
+          @for (group of nav; track group.title) {
+            <div class="nav-group-title">{{ group.title }}</div>
+            @for (item of group.items; track item.path) {
+              <a [routerLink]="item.disabled ? null : item.path"
+                 routerLinkActive="active"
+                 [class.disabled]="item.disabled">
+                <span class="ico">{{ item.icon }}</span>
+                <span>{{ item.label }}</span>
+                @if (item.disabled) { <span class="soon">soon</span> }
+              </a>
+            }
           }
         </nav>
       </aside>
@@ -61,12 +69,14 @@ interface NavItem {
     .sidebar { width: 250px; background: #1f2933; color: #cbd2d9; display: flex; flex-direction: column;
       padding: 1.1rem .9rem; position: sticky; top: 0; height: 100vh; }
     .brand { display: flex; align-items: center; gap: .7rem; padding: .3rem .4rem 1.2rem; }
-    .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--brand); color: #fff;
-      display: grid; place-items: center; font-weight: 800; }
+    .logo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,.25); }
     .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
     .brand-text strong { color: #fff; font-size: .95rem; }
     .brand-text span { font-size: .72rem; color: var(--muted); }
-    nav { display: flex; flex-direction: column; gap: .15rem; margin-top: .5rem; }
+    nav { display: flex; flex-direction: column; gap: .15rem; margin-top: .5rem; overflow-y: auto; }
+    .nav-group-title { font-size: .65rem; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); padding: .9rem .75rem .35rem; }
     nav a { display: flex; align-items: center; gap: .7rem; padding: .65rem .75rem; border-radius: 8px;
       color: #cbd2d9; font-size: .9rem; font-weight: 500; cursor: pointer; }
     nav a:hover { background: rgba(255,255,255,.06); color: #fff; }
@@ -91,16 +101,45 @@ export class ShellComponent {
   auth = inject(AuthService);
   private router = inject(Router);
 
-  nav: NavItem[] = [
-    { label: 'Dashboard', path: '/dashboard', icon: '▦' },
-    { label: 'Inventory', path: '/inventory', icon: '▣', disabled: true },
-    { label: 'Sales', path: '/sales', icon: '↗', disabled: true },
-    { label: 'Purchasing', path: '/purchasing', icon: '↘', disabled: true },
-    { label: 'Expenses', path: '/expenses', icon: '₨', disabled: true },
-    { label: 'Reports', path: '/reports', icon: '◷', disabled: true },
-    { label: 'Godowns', path: '/settings/godowns', icon: '▤' },
-    { label: 'Users', path: '/settings/users', icon: '☺' },
-    { label: 'Company', path: '/settings/company', icon: '⚙' },
+  nav: NavGroup[] = [
+    {
+      title: 'Main',
+      items: [{ label: 'Dashboard', path: '/dashboard', icon: '▦' }],
+    },
+    {
+      title: 'Inventory',
+      items: [
+        { label: 'Items', path: '/inventory/items', icon: '▣' },
+        { label: 'Categories', path: '/inventory/categories', icon: '◫' },
+        { label: 'Units', path: '/inventory/units', icon: '⚖' },
+        { label: 'Stock on hand', path: '/stock/levels', icon: '▥' },
+        { label: 'Adjustments', path: '/stock/adjustments', icon: '⇅' },
+      ],
+    },
+    {
+      title: 'Parties',
+      items: [
+        { label: 'Customers', path: '/parties/customers', icon: '☺' },
+        { label: 'Suppliers', path: '/parties/suppliers', icon: '⛬' },
+      ],
+    },
+    {
+      title: 'Operations',
+      items: [
+        { label: 'Sales', path: '/sales', icon: '↗', disabled: true },
+        { label: 'Purchasing', path: '/purchasing', icon: '↘', disabled: true },
+        { label: 'Expenses', path: '/expenses', icon: '₨', disabled: true },
+        { label: 'Reports', path: '/reports', icon: '◷', disabled: true },
+      ],
+    },
+    {
+      title: 'Settings',
+      items: [
+        { label: 'Godowns', path: '/settings/godowns', icon: '▤' },
+        { label: 'Users', path: '/settings/users', icon: '⚇' },
+        { label: 'Company', path: '/settings/company', icon: '⚙' },
+      ],
+    },
   ];
 
   initials(): string {

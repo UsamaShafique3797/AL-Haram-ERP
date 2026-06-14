@@ -1,8 +1,14 @@
 using System.Text;
 using AlHaram.Application.Auth;
+using AlHaram.Application.Categories;
 using AlHaram.Application.Common.Models;
 using AlHaram.Application.Companies;
+using AlHaram.Application.Customers;
 using AlHaram.Application.Godowns;
+using AlHaram.Application.Items;
+using AlHaram.Application.Stock;
+using AlHaram.Application.Suppliers;
+using AlHaram.Application.Units;
 using AlHaram.Infrastructure.Identity;
 using AlHaram.Infrastructure.Persistence;
 using AlHaram.Infrastructure.Services;
@@ -60,6 +66,12 @@ public static class DependencyInjection
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<ICompanyService, CompanyService>();
         services.AddScoped<IGodownService, GodownService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<IUnitService, UnitService>();
+        services.AddScoped<IItemService, ItemService>();
+        services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<IStockService, StockService>();
 
         return services;
     }

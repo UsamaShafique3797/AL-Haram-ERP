@@ -39,15 +39,27 @@ Read these in order:
 
 ---
 
-## Status — Phase 0 complete ✅
+## Status — Phase 1 complete ✅
 
-The foundation is built and runs end-to-end:
+**Phase 0 (Foundation)** and **Phase 1 (Inventory & Masters)** are built and run end-to-end.
 
 - **Backend:** .NET 9 Web API (Domain / Application / Infrastructure / Api), EF Core + SQL Server,
   ASP.NET Identity, JWT auth, Swagger. Database auto-migrates and seeds on startup.
-- **Frontend:** Angular 19 app with login, JWT interceptor, route guards, app shell, dashboard,
-  and settings (company, godowns, users).
+- **Frontend:** Angular 19 app with login, JWT interceptor, route guards, grouped app shell, dashboard.
 - **Default login:** `admin` / `Admin@123`
 
+### Phase 0 — Foundation
+- Login / JWT auth, route guards, role-based access.
+- Company settings, Godowns, Users.
+
+### Phase 1 — Inventory & Masters
+- **Categories** and **Units** master data (kg, ton, piece, bundle, bag, cft seeded).
+- **Items** with steel attributes (diameter, grade, length, weight/piece), default rates,
+  reorder level, and **dual-unit handling** (weight ↔ piece conversion factors per item).
+- **Customers** (retail / wholesale / contractor) and **Suppliers** with opening balances.
+- **Opening stock** entry and **weighted-average** stock valuation per item, per godown.
+- **Stock on hand** view (quantity + value + low-stock indicator) and per-item **movement ledger**.
+- **Stock adjustments** (wastage / damage / correction) that post movements.
+
 Run it: see [docs/06-getting-started.md](docs/06-getting-started.md).
-**Next up:** Phase 1 — Inventory & item catalog.
+**Next up:** Phase 2 — Sales & Receivables.

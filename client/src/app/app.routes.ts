@@ -17,6 +17,34 @@ export const routes: Routes = [
         loadComponent: () => import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
       },
       {
+        path: 'inventory/items',
+        loadComponent: () => import('./features/inventory/items.component').then((m) => m.ItemsComponent),
+      },
+      {
+        path: 'inventory/categories',
+        loadComponent: () => import('./features/inventory/categories.component').then((m) => m.CategoriesComponent),
+      },
+      {
+        path: 'inventory/units',
+        loadComponent: () => import('./features/inventory/units.component').then((m) => m.UnitsComponent),
+      },
+      {
+        path: 'stock/levels',
+        loadComponent: () => import('./features/stock/stock-levels.component').then((m) => m.StockLevelsComponent),
+      },
+      {
+        path: 'stock/adjustments',
+        loadComponent: () => import('./features/stock/adjustments.component').then((m) => m.AdjustmentsComponent),
+      },
+      {
+        path: 'parties/customers',
+        loadComponent: () => import('./features/parties/customers.component').then((m) => m.CustomersComponent),
+      },
+      {
+        path: 'parties/suppliers',
+        loadComponent: () => import('./features/parties/suppliers.component').then((m) => m.SuppliersComponent),
+      },
+      {
         path: 'settings/company',
         loadComponent: () => import('./features/settings/company.component').then((m) => m.CompanyComponent),
       },

@@ -25,12 +25,12 @@ they shrink with more people.
 ## Phase 1 — Inventory & Masters (MVP core)  *(~2 weeks)*
 **Goal:** the product catalog and stock truth.
 
-- [ ] Categories, Units, Items with steel attributes (diameter, grade, length, weight/piece).
-- [ ] Dual unit handling (weight ↔ piece conversions).
-- [ ] Customers & Suppliers master with opening balances.
-- [ ] Opening stock entry & stock valuation (weighted average).
-- [ ] Stock list, item movement view, low‑stock indicator.
-- [ ] Stock adjustments (wastage/damage/correction).
+- [x] Categories, Units, Items with steel attributes (diameter, grade, length, weight/piece).
+- [x] Dual unit handling (weight ↔ piece conversions).
+- [x] Customers & Suppliers master with opening balances.
+- [x] Opening stock entry & stock valuation (weighted average).
+- [x] Stock list, item movement view, low‑stock indicator.
+- [x] Stock adjustments (wastage/damage/correction).
 
 **Deliverable:** full catalog and accurate stock on hand with value.
 

@@ -65,6 +65,28 @@ public static class DbSeeder
             });
         }
 
+        if (!await db.Units.AnyAsync())
+        {
+            db.Units.AddRange(
+                new Unit { Name = "Kilogram", Code = "kg" },
+                new Unit { Name = "Ton", Code = "ton" },
+                new Unit { Name = "Piece", Code = "pc" },
+                new Unit { Name = "Bundle", Code = "bdl" },
+                new Unit { Name = "Bag", Code = "bag" },
+                new Unit { Name = "Cubic Feet", Code = "cft" });
+        }
+
+        if (!await db.Categories.AnyAsync())
+        {
+            db.Categories.AddRange(
+                new Category { Name = "Steel Bars", Code = "STEEL", Description = "TMT / deformed steel bars by diameter." },
+                new Category { Name = "Rings & Stirrups", Code = "RINGS", Description = "Fabricated steel rings and stirrups." },
+                new Category { Name = "Pillars", Code = "PILLAR", Description = "Fabricated pillars." },
+                new Category { Name = "Cement", Code = "CEMENT", Description = "Cement bags." },
+                new Category { Name = "Aggregates", Code = "AGG", Description = "Sand, crush, gravel." },
+                new Category { Name = "Pipes & Sections", Code = "PIPES", Description = "Pipes, angles, channels, sheets." });
+        }
+
         await db.SaveChangesAsync();
     }
 }
