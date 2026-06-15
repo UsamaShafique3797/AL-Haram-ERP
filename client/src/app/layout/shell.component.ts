@@ -114,6 +114,15 @@ export class ShellComponent {
         { label: 'Units', path: '/inventory/units', icon: '⚖' },
         { label: 'Stock on hand', path: '/stock/levels', icon: '▥' },
         { label: 'Adjustments', path: '/stock/adjustments', icon: '⇅' },
+        { label: 'Transfers', path: '/stock/transfers', icon: '⇄' },
+      ],
+    },
+    {
+      title: 'Production',
+      items: [
+        { label: 'Bill of materials', path: '/production/boms', icon: '⊞' },
+        { label: 'Production orders', path: '/production/orders', icon: '⚙' },
+        { label: 'Job work', path: '/production/job-work', icon: '⚒' },
       ],
     },
     {
@@ -124,12 +133,36 @@ export class ShellComponent {
       ],
     },
     {
+      title: 'Sales',
+      items: [
+        { label: 'Invoices', path: '/sales/invoices', icon: '↗' },
+        { label: 'Quotations', path: '/sales/quotations', icon: '✎' },
+        { label: 'Delivery challans', path: '/sales/challans', icon: '🚚' },
+        { label: 'Receipts', path: '/sales/receipts', icon: '₨' },
+        { label: 'Returns', path: '/sales/returns', icon: '⟲' },
+        { label: 'Receivables', path: '/sales/receivables', icon: '◷' },
+        { label: 'Customer ledger', path: '/sales/ledger', icon: '☰' },
+      ],
+    },
+    {
+      title: 'Purchasing',
+      items: [
+        { label: 'Purchase invoices', path: '/purchasing/invoices', icon: '↘' },
+        { label: 'Purchase orders', path: '/purchasing/orders', icon: '📋' },
+        { label: 'GRN', path: '/purchasing/grns', icon: '📦' },
+        { label: 'Supplier payments', path: '/purchasing/payments', icon: '₨' },
+        { label: 'Purchase returns', path: '/purchasing/returns', icon: '⟲' },
+        { label: 'Payables', path: '/purchasing/payables', icon: '◷' },
+        { label: 'Supplier ledger', path: '/purchasing/ledger', icon: '☰' },
+      ],
+    },
+    {
       title: 'Operations',
       items: [
-        { label: 'Sales', path: '/sales', icon: '↗', disabled: true },
-        { label: 'Purchasing', path: '/purchasing', icon: '↘', disabled: true },
-        { label: 'Expenses', path: '/expenses', icon: '₨', disabled: true },
-        { label: 'Reports', path: '/reports', icon: '◷', disabled: true },
+        { label: 'Expenses', path: '/expenses', icon: '₨' },
+        { label: 'Cash book', path: '/finance/cash-book', icon: '▤' },
+        { label: 'Day book', path: '/finance/day-book', icon: '☰' },
+        { label: 'Reports', path: '/reports', icon: '◷' },
       ],
     },
     {
@@ -137,6 +170,7 @@ export class ShellComponent {
       items: [
         { label: 'Godowns', path: '/settings/godowns', icon: '▤' },
         { label: 'Users', path: '/settings/users', icon: '⚇' },
+        { label: 'Audit log', path: '/settings/audit-log', icon: '📜' },
         { label: 'Company', path: '/settings/company', icon: '⚙' },
       ],
     },

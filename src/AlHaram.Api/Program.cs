@@ -14,11 +14,25 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicy, policy =>
     {
-        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                      ?? new[] { "http://localhost:4200" };
-        policy.WithOrigins(origins)
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (builder.Environment.IsDevelopment())
+        {
+            // Allow ng serve on any localhost port (4200, 64824, etc.)
+            policy.SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+                return Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+                       && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                           || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase));
+            });
+        }
+        else
+        {
+            var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                          ?? new[] { "http://localhost:4200" };
+            policy.WithOrigins(origins);
+        }
+
+        policy.AllowAnyHeader().AllowAnyMethod();
     });
 });
 

@@ -15,7 +15,9 @@ public enum MovementType
     AdjustmentDecrease = 7,
     TransferIn = 8,
     TransferOut = 9,
-    Production = 10
+    Production = 10,
+    DeliveryChallan = 11,
+    Grn = 12
 }
 
 /// <summary>

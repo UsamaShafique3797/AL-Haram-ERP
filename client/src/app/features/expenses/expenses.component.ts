@@ -1,0 +1,207 @@
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
+import { ExpenseService } from '../../core/services/expense.service';
+import { ExpenseCategoryService } from '../../core/services/expense-category.service';
+import { PaymentAccountService } from '../../core/services/payment-account.service';
+import { FileService } from '../../core/services/file.service';
+import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/models/domain.models';
+
+@Component({
+  selector: 'app-expenses',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, RouterLink],
+  template: `
+    <div class="row" style="align-items:center">
+      <div>
+        <h1 class="page-title">Expenses</h1>
+        <p class="page-sub">Record business expenses paid from cash or bank.</p>
+      </div>
+      <div class="spacer"></div>
+      <a class="btn btn-ghost" routerLink="/expenses/categories">Categories</a>
+      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New expense</button>
+    </div>
+
+    @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
+
+    <div class="card" style="overflow:hidden">
+      <table class="table">
+        <thead>
+          <tr><th>Number</th><th>Date</th><th>Category</th><th>Account</th><th class="num">Amount</th><th>Notes</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (e of expenses(); track e.id) {
+            <tr>
+              <td>{{ e.number }}</td>
+              <td>{{ e.date | date:'mediumDate' }}</td>
+              <td>{{ e.expenseCategoryName }}</td>
+              <td>{{ e.paymentAccountName }}</td>
+              <td class="num">{{ money(e.amount) }}</td>
+              <td>{{ e.notes || '—' }}</td>
+              <td style="text-align:right">
+                <button class="btn btn-danger btn-sm" (click)="remove(e)">Delete</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No expenses recorded yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (showForm()) {
+      <div class="modal-backdrop" (click)="close()">
+        <div class="modal card" (click)="$event.stopPropagation()">
+          <div class="card-pad">
+            <h3>New expense</h3>
+            @if (formError()) { <div class="alert alert-error">{{ formError() }}</div> }
+            <form [formGroup]="form" (ngSubmit)="save()">
+              <div class="row">
+                <div class="field" style="flex:1"><label>Date</label><input type="date" formControlName="date" /></div>
+                <div class="field" style="flex:2">
+                  <label>Category</label>
+                  <select formControlName="expenseCategoryId">
+                    <option value="">— select —</option>
+                    @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                  </select>
+                </div>
+                <div class="field" style="flex:1"><label>Amount</label><input type="number" step="0.01" formControlName="amount" /></div>
+              </div>
+              <div class="row">
+                <div class="field" style="flex:2">
+                  <label>Paid from</label>
+                  <select formControlName="paymentAccountId">
+                    <option value="">— select —</option>
+                    @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }} ({{ money(a.currentBalance) }})</option> }
+                  </select>
+                </div>
+                <div class="field" style="flex:2">
+                  <label>Receipt attachment</label>
+                  <input type="file" accept="image/*,.pdf" (change)="onFile($event)" />
+                  @if (uploading()) { <span class="muted">Uploading…</span> }
+                  @if (form.value.attachmentPath) { <span class="muted">{{ form.value.attachmentPath }}</span> }
+                </div>
+              </div>
+              <div class="field"><label>Notes</label><input formControlName="notes" /></div>
+              <div class="row" style="justify-content:flex-end;margin-top:1rem">
+                <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
+                <button class="btn btn-primary" [disabled]="form.invalid || loading()">
+                  {{ loading() ? 'Saving…' : 'Save expense' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    }
+  `,
+  styles: [`
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(16,24,40,.45);
+      display: grid; place-items: center; padding: 1rem; z-index: 50; }
+    .modal { width: 100%; max-width: 560px; }
+    .num { text-align: right; }
+  `],
+})
+export class ExpensesComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private expenseService = inject(ExpenseService);
+  private categoryService = inject(ExpenseCategoryService);
+  private accountService = inject(PaymentAccountService);
+  private fileService = inject(FileService);
+
+  expenses = signal<ExpenseDto[]>([]);
+  categories = signal<ExpenseCategoryDto[]>([]);
+  accounts = signal<PaymentAccountDto[]>([]);
+  ready = signal(false);
+  showForm = signal(false);
+  loading = signal(false);
+  uploading = signal(false);
+  error = signal<string | null>(null);
+  formError = signal<string | null>(null);
+
+  form = this.fb.nonNullable.group({
+    date: [new Date().toISOString().substring(0, 10), Validators.required],
+    expenseCategoryId: ['', Validators.required],
+    amount: [0, [Validators.required, Validators.min(0.01)]],
+    paymentAccountId: ['', Validators.required],
+    notes: [''],
+    attachmentPath: [''],
+  });
+
+  ngOnInit(): void {
+    forkJoin({
+      expenses: this.expenseService.getAll(),
+      categories: this.categoryService.getAll(),
+      accounts: this.accountService.getAll(),
+    }).subscribe({
+      next: (d) => {
+        this.expenses.set(d.expenses);
+        this.categories.set(d.categories.filter((c) => c.isActive));
+        this.accounts.set(d.accounts.filter((a) => a.isActive));
+        this.ready.set(true);
+      },
+      error: () => this.error.set('Could not load expenses.'),
+    });
+  }
+
+  money(v: number): string {
+    return 'Rs ' + Number(v ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  openNew(): void {
+    this.formError.set(null);
+    this.form.reset({
+      date: new Date().toISOString().substring(0, 10),
+      expenseCategoryId: '',
+      amount: 0,
+      paymentAccountId: this.accounts().find((a) => a.isDefault)?.id ?? '',
+      notes: '',
+      attachmentPath: '',
+    });
+    this.showForm.set(true);
+  }
+
+  save(): void {
+    if (this.form.invalid) return;
+    this.loading.set(true);
+    this.formError.set(null);
+    this.expenseService.create(this.form.getRawValue()).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.close();
+        this.expenseService.getAll().subscribe({ next: (list) => this.expenses.set(list) });
+        this.accountService.getAll().subscribe({ next: (list) => this.accounts.set(list.filter((a) => a.isActive)) });
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.formError.set(err?.error?.errors?.[0] ?? 'Could not save expense.');
+      },
+    });
+  }
+
+  remove(e: ExpenseDto): void {
+    if (!confirm(`Delete expense ${e.number}?`)) return;
+    this.expenseService.delete(e.id).subscribe({
+      next: () => this.expenseService.getAll().subscribe({ next: (list) => this.expenses.set(list) }),
+      error: () => this.error.set('Could not delete expense.'),
+    });
+  }
+
+  close(): void { this.showForm.set(false); }
+
+  onFile(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.uploading.set(true);
+    this.fileService.upload(file).subscribe({
+      next: (res) => {
+        this.form.patchValue({ attachmentPath: res.path });
+        this.uploading.set(false);
+      },
+      error: () => { this.uploading.set(false); this.formError.set('File upload failed.'); },
+    });
+  }
+}

@@ -1,11 +1,16 @@
 using System.Text;
 using AlHaram.Application.Auth;
 using AlHaram.Application.Categories;
+using AlHaram.Application.Common;
 using AlHaram.Application.Common.Models;
 using AlHaram.Application.Companies;
 using AlHaram.Application.Customers;
+using AlHaram.Application.Finance;
 using AlHaram.Application.Godowns;
 using AlHaram.Application.Items;
+using AlHaram.Application.Purchasing;
+using AlHaram.Application.Sales;
+using AlHaram.Application.Production;
 using AlHaram.Application.Stock;
 using AlHaram.Application.Suppliers;
 using AlHaram.Application.Units;
@@ -72,6 +77,42 @@ public static class DependencyInjection
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IStockService, StockService>();
+
+        // Phase 2 — Sales & Receivables
+        services.AddScoped<IPaymentAccountService, PaymentAccountService>();
+        services.AddScoped<ISalesInvoiceService, SalesInvoiceService>();
+        services.AddScoped<ISalesReturnService, SalesReturnService>();
+        services.AddScoped<ICustomerReceiptService, CustomerReceiptService>();
+        services.AddScoped<ICustomerLedgerService, CustomerLedgerService>();
+
+        // Phase 3 — Purchasing & Payables
+        services.AddScoped<IPurchaseInvoiceService, PurchaseInvoiceService>();
+        services.AddScoped<ISupplierPaymentService, SupplierPaymentService>();
+        services.AddScoped<IPurchaseReturnService, PurchaseReturnService>();
+        services.AddScoped<ISupplierLedgerService, SupplierLedgerService>();
+
+        // Phase 4 — Expenses, Cash/Bank & P&L
+        services.AddScoped<IExpenseCategoryService, ExpenseCategoryService>();
+        services.AddScoped<IExpenseService, ExpenseService>();
+        services.AddScoped<ICashBookService, CashBookService>();
+        services.AddScoped<IDayBookService, DayBookService>();
+        services.AddScoped<IProfitLossService, ProfitLossService>();
+        services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IDashboardService, DashboardService>();
+
+        // Phase 5 — Production / Fabrication
+        services.AddScoped<IBomService, BomService>();
+        services.AddScoped<IProductionOrderService, ProductionOrderService>();
+        services.AddScoped<IJobWorkOrderService, JobWorkOrderService>();
+
+        // Remaining features
+        services.AddScoped<IAuditLogService, AuditLogService>();
+        services.AddScoped<IDeliveryChallanService, DeliveryChallanService>();
+        services.AddScoped<IQuotationService, QuotationService>();
+        services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
+        services.AddScoped<IGrnService, GrnService>();
+        services.AddScoped<IAgeingService, AgeingService>();
+        services.AddScoped<IStockTransferService, StockTransferService>();
 
         return services;
     }

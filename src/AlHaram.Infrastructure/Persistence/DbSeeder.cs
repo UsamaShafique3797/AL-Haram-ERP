@@ -1,5 +1,6 @@
 using AlHaram.Domain.Constants;
 using AlHaram.Domain.Entities;
+using AlHaram.Domain.Enums;
 using AlHaram.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,25 @@ public static class DbSeeder
                 new Category { Name = "Cement", Code = "CEMENT", Description = "Cement bags." },
                 new Category { Name = "Aggregates", Code = "AGG", Description = "Sand, crush, gravel." },
                 new Category { Name = "Pipes & Sections", Code = "PIPES", Description = "Pipes, angles, channels, sheets." });
+        }
+
+        if (!await db.PaymentAccounts.AnyAsync())
+        {
+            db.PaymentAccounts.AddRange(
+                new PaymentAccount { Name = "Cash", Type = PaymentAccountType.Cash, IsDefault = true, IsActive = true },
+                new PaymentAccount { Name = "Bank", Type = PaymentAccountType.Bank, IsDefault = false, IsActive = true });
+        }
+
+        if (!await db.ExpenseCategories.AnyAsync())
+        {
+            db.ExpenseCategories.AddRange(
+                new ExpenseCategory { Name = "Godown Rent", Code = "RENT" },
+                new ExpenseCategory { Name = "Salaries", Code = "SALARY" },
+                new ExpenseCategory { Name = "Electricity", Code = "ELEC" },
+                new ExpenseCategory { Name = "Fuel & Transport", Code = "FUEL" },
+                new ExpenseCategory { Name = "Loading / Labor", Code = "LABOR" },
+                new ExpenseCategory { Name = "Repairs & Maintenance", Code = "REPAIR" },
+                new ExpenseCategory { Name = "Office & Misc", Code = "MISC" });
         }
 
         await db.SaveChangesAsync();

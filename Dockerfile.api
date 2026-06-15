@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+COPY nuget.config ./
+COPY src/AlHaram.Domain/AlHaram.Domain.csproj src/AlHaram.Domain/
+COPY src/AlHaram.Application/AlHaram.Application.csproj src/AlHaram.Application/
+COPY src/AlHaram.Infrastructure/AlHaram.Infrastructure.csproj src/AlHaram.Infrastructure/
+COPY src/AlHaram.Api/AlHaram.Api.csproj src/AlHaram.Api/
+RUN dotnet restore src/AlHaram.Api/AlHaram.Api.csproj
+COPY src/ ./src/
+RUN dotnet publish src/AlHaram.Api/AlHaram.Api.csproj -c Release -o /app/publish --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "AlHaram.Api.dll"]

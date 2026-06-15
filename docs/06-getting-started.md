@@ -85,5 +85,19 @@ dotnet ef migrations add <Name> --project src/AlHaram.Infrastructure --startup-p
 
 Migrations are applied automatically at API startup.
 
+## What works in Phase 2 (Sales & Receivables)
+- **Sales invoices** (cash & credit): multi-line, unit choice, discount, tax, stock deduction at weighted-average cost.
+- **Invoice print view** (browser Print / Save as PDF).
+- **Customer receipts** with allocation to outstanding invoices.
+- **Customer ledger** (running balance per customer).
+- **Receivables** list (who owes how much).
+- **Sales returns / credit notes** against an original invoice (restocks items).
+- **Payment accounts** (Cash & Bank seeded on startup).
+- **Dashboard** sales trend, top customers, and receivables charts.
+
+### API endpoints added in Phase 2
+`sales-invoices`, `sales-invoices/open/{customerId}`, `sales-returns`, `customer-receipts`,
+`customer-ledger/{customerId}`, `customer-ledger/receivables`, `payment-accounts`.
+
 ## Next phase
-See [05-development-plan.md](05-development-plan.md) → **Phase 2: Sales & Receivables**.
+See [05-development-plan.md](docs/05-development-plan.md) → **Phase 3: Purchasing & Payables**.

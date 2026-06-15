@@ -83,7 +83,11 @@ export class LoginComponent {
       },
       error: (err) => {
         this.loading.set(false);
-        this.error.set(err?.error?.errors?.[0] ?? 'Invalid username or password.');
+        if (err?.status === 0) {
+          this.error.set('Cannot reach the API. Start it with: dotnet run --project src/AlHaram.Api --launch-profile http');
+        } else {
+          this.error.set(err?.error?.errors?.[0] ?? 'Invalid username or password.');
+        }
       },
     });
   }
