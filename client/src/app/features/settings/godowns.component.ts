@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GodownService } from '../../core/services/godown.service';
+import { AccessService } from '../../core/services/access.service';
 import { GodownDto } from '../../core/models/domain.models';
 
 @Component({
@@ -14,7 +15,9 @@ import { GodownDto } from '../../core/models/domain.models';
         <p class="page-sub">Your storage locations.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()">+ New godown</button>
+      @if (access.canWrite('settings/godowns')) {
+        <button class="btn btn-primary" (click)="openNew()">+ New godown</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -38,8 +41,12 @@ import { GodownDto } from '../../core/models/domain.models';
                 @else { <span class="badge badge-muted">Inactive</span> }
               </td>
               <td style="text-align:right">
-                <button class="btn btn-ghost btn-sm" (click)="edit(g)">Edit</button>
-                <button class="btn btn-danger btn-sm" (click)="remove(g)">Delete</button>
+                @if (access.canWrite('settings/godowns')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(g)">Edit</button>
+                }
+                @if (access.canDelete('settings/godowns')) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(g)">Delete</button>
+                }
               </td>
             </tr>
           } @empty {
@@ -85,6 +92,7 @@ import { GodownDto } from '../../core/models/domain.models';
   `],
 })
 export class GodownsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private service = inject(GodownService);
 

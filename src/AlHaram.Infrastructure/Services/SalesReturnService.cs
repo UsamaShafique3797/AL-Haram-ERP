@@ -1,7 +1,9 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Common.Models;
 using AlHaram.Application.Sales;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,8 +12,13 @@ namespace AlHaram.Infrastructure.Services;
 public class SalesReturnService : ISalesReturnService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public SalesReturnService(AppDbContext db) => _db = db;
+    public SalesReturnService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<SalesReturnDto>> GetAllAsync(CancellationToken ct = default)
     {
@@ -21,6 +28,7 @@ public class SalesReturnService : ISalesReturnService
             .Include(r => r.SalesInvoice)
             .Include(r => r.Lines).ThenInclude(l => l.Item)
             .Include(r => r.Lines).ThenInclude(l => l.Unit)
+            .ForBranch(_branch)
             .OrderByDescending(r => r.Date)
             .ThenByDescending(r => r.CreatedAt)
             .ToListAsync(ct);

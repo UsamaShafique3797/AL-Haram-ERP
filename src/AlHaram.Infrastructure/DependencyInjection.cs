@@ -13,9 +13,15 @@ using AlHaram.Application.Sales;
 using AlHaram.Application.Production;
 using AlHaram.Application.Stock;
 using AlHaram.Application.Suppliers;
+using AlHaram.Application.Messaging;
 using AlHaram.Application.Units;
+using AlHaram.Application.WhatsApp;
+using AlHaram.Application.Documents;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Identity;
+using AlHaram.Infrastructure.Documents;
 using AlHaram.Infrastructure.Persistence;
+using AlHaram.Infrastructure.WhatsApp;
 using AlHaram.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -47,6 +53,11 @@ public static class DependencyInjection
         var jwtSettings = new JwtSettings();
         config.GetSection(JwtSettings.SectionName).Bind(jwtSettings);
         services.Configure<JwtSettings>(config.GetSection(JwtSettings.SectionName));
+        services.Configure<WhatsAppSettings>(config.GetSection(WhatsAppSettings.SectionName));
+
+        services.AddHttpClient<IWhatsAppService, MetaWhatsAppService>();
+        services.AddScoped<IInvoicePdfService, InvoicePdfService>();
+        services.AddScoped<ICustomerMessagingService, CustomerMessagingService>();
 
         services.AddAuthentication(options =>
             {
@@ -67,6 +78,9 @@ public static class DependencyInjection
                     ClockSkew = TimeSpan.FromMinutes(1)
                 };
             });
+
+        services.AddHttpContextAccessor();
+        services.AddScoped<IBranchScope, BranchScope>();
 
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<ICompanyService, CompanyService>();

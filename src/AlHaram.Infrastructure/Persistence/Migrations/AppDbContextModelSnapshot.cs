@@ -2696,6 +2696,9 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("GodownId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -2736,6 +2739,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GodownId");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
@@ -3611,6 +3616,16 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                     b.Navigation("PaymentAccount");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("AlHaram.Infrastructure.Identity.ApplicationUser", b =>
+                {
+                    b.HasOne("AlHaram.Domain.Entities.Godown", "Godown")
+                        .WithMany()
+                        .HasForeignKey("GodownId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Godown");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { CustomerService } from '../../core/services/customer.service';
 import { ItemService } from '../../core/services/item.service';
 import { QuotationService } from '../../core/services/remaining-features.service';
+import { AccessService } from '../../core/services/access.service';
 import {
   CustomerDto, ItemDto, QuotationDto, QuotationStatusLabels,
 } from '../../core/models/domain.models';
@@ -20,7 +21,9 @@ import {
         <p class="page-sub">Prepare price quotes for customers before invoicing.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New quotation</button>
+      @if (access.canWrite('sales/quotations')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New quotation</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -137,6 +140,7 @@ import {
   `],
 })
 export class QuotationsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private quotationService = inject(QuotationService);
   private customerService = inject(CustomerService);

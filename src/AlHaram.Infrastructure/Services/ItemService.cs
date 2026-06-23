@@ -1,6 +1,8 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Common.Models;
 using AlHaram.Application.Items;
 using AlHaram.Domain.Entities;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,8 +11,13 @@ namespace AlHaram.Infrastructure.Services;
 public class ItemService : IItemService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public ItemService(AppDbContext db) => _db = db;
+    public ItemService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<ItemDto>> GetAllAsync(CancellationToken ct = default)
     {
@@ -45,7 +52,7 @@ public class ItemService : IItemService
 
     public async Task<Result<ItemDto>> UpdateAsync(Guid id, SaveItemRequest request, CancellationToken ct = default)
     {
-        var item = await _db.Items.Include(i => i.ItemUnits).FirstOrDefaultAsync(i => i.Id == id, ct);
+        var item = await _db.Items.FirstOrDefaultAsync(i => i.Id == id, ct);
         if (item is null) return Result<ItemDto>.Failure("Item not found.");
 
         var validation = await ValidateAsync(request, id, ct);
@@ -53,9 +60,11 @@ public class ItemService : IItemService
 
         Apply(item, request);
 
-        _db.ItemUnits.RemoveRange(item.ItemUnits);
-        item.ItemUnits.Clear();
-        BuildItemUnits(item, request);
+        var existingUnits = await _db.ItemUnits.IgnoreQueryFilters()
+            .Where(iu => iu.ItemId == id)
+            .ToListAsync(ct);
+
+        SyncItemUnits(item.Id, existingUnits, request);
 
         await _db.SaveChangesAsync(ct);
 
@@ -147,11 +156,61 @@ public class ItemService : IItemService
         }
     }
 
+    /// <summary>
+    /// Updates item-unit rows in place. Avoids RemoveRange + soft-delete, which causes
+    /// EF Core concurrency failures and unique-index conflicts on (ItemId, UnitId).
+    /// </summary>
+    private void SyncItemUnits(Guid itemId, List<ItemUnit> existing, SaveItemRequest request)
+    {
+        var desired = new List<(Guid UnitId, decimal Factor, bool IsBase)>
+        {
+            (request.BaseUnitId, 1m, true)
+        };
+
+        foreach (var au in request.AdditionalUnits ?? Array.Empty<SaveItemUnitRequest>())
+        {
+            if (au.UnitId != request.BaseUnitId)
+                desired.Add((au.UnitId, au.ConversionFactor, false));
+        }
+
+        var desiredIds = desired.Select(d => d.UnitId).ToHashSet();
+
+        foreach (var row in existing)
+        {
+            if (desiredIds.Contains(row.UnitId))
+            {
+                var match = desired.First(d => d.UnitId == row.UnitId);
+                row.ConversionFactor = match.Factor;
+                row.IsBaseUnit = match.IsBase;
+                row.IsDeleted = false;
+            }
+            else
+            {
+                row.IsDeleted = true;
+            }
+        }
+
+        foreach (var d in desired)
+        {
+            if (existing.All(e => e.UnitId != d.UnitId))
+            {
+                _db.ItemUnits.Add(new ItemUnit
+                {
+                    ItemId = itemId,
+                    UnitId = d.UnitId,
+                    ConversionFactor = d.Factor,
+                    IsBaseUnit = d.IsBase,
+                });
+            }
+        }
+    }
+
     private async Task<Dictionary<Guid, (decimal Qty, decimal Value)>> GetStockTotalsAsync(
         CancellationToken ct, Guid? itemId = null)
     {
         var query = _db.StockItems.AsQueryable();
         if (itemId is not null) query = query.Where(s => s.ItemId == itemId);
+        if (_branch.EffectiveGodownId is Guid gid) query = query.Where(s => s.GodownId == gid);
 
         var totals = await query
             .GroupBy(s => s.ItemId)

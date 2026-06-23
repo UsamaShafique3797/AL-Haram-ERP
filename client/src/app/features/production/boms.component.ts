@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BomService } from '../../core/services/bom.service';
 import { ItemService } from '../../core/services/item.service';
+import { AccessService } from '../../core/services/access.service';
 import { BillOfMaterialsDto, ItemDto } from '../../core/models/domain.models';
 
 @Component({
@@ -15,7 +16,9 @@ import { BillOfMaterialsDto, ItemDto } from '../../core/models/domain.models';
         <p class="page-sub">Define raw steel consumed per finished unit (rings, pillars, stirrups…).</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New BOM</button>
+      @if (access.canWrite('production/boms')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New BOM</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -34,8 +37,12 @@ import { BillOfMaterialsDto, ItemDto } from '../../core/models/domain.models';
                 @else { <span class="badge badge-muted">Inactive</span> }
               </td>
               <td style="text-align:right">
-                <button class="btn btn-ghost btn-sm" (click)="edit(b)">Edit</button>
-                <button class="btn btn-danger btn-sm" (click)="remove(b)">Delete</button>
+                @if (access.canWrite('production/boms')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(b)">Edit</button>
+                }
+                @if (access.canDelete('production/boms')) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(b)">Delete</button>
+                }
               </td>
             </tr>
           } @empty {
@@ -107,6 +114,7 @@ import { BillOfMaterialsDto, ItemDto } from '../../core/models/domain.models';
   `],
 })
 export class BomsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private bomService = inject(BomService);
   private itemService = inject(ItemService);

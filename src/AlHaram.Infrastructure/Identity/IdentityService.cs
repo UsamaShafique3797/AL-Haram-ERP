@@ -3,7 +3,10 @@ using System.Security.Claims;
 using System.Text;
 using AlHaram.Application.Auth;
 using AlHaram.Application.Common.Models;
+using AlHaram.Infrastructure.Auth;
+using AlHaram.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -13,21 +16,26 @@ public class IdentityService : IIdentityService
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
+    private readonly AppDbContext _db;
     private readonly JwtSettings _jwt;
 
     public IdentityService(
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
+        AppDbContext db,
         IOptions<JwtSettings> jwt)
     {
         _userManager = userManager;
         _roleManager = roleManager;
+        _db = db;
         _jwt = jwt.Value;
     }
 
     public async Task<Result<AuthResult>> LoginAsync(LoginRequest request, CancellationToken ct = default)
     {
-        var user = await _userManager.FindByNameAsync(request.UserName);
+        var user = await _userManager.Users
+            .Include(u => u.Godown)
+            .FirstOrDefaultAsync(u => u.UserName == request.UserName, ct);
         if (user is null || !user.IsActive)
             return Result<AuthResult>.Failure("Invalid username or password.");
 
@@ -50,12 +58,16 @@ public class IdentityService : IIdentityService
         if (existing is not null)
             return Result<UserDto>.Failure("A user with this username already exists.");
 
+        if (request.GodownId is Guid gid && !await _db.Godowns.AnyAsync(g => g.Id == gid, ct))
+            return Result<UserDto>.Failure("Selected branch does not exist.");
+
         var user = new ApplicationUser
         {
             UserName = request.UserName,
             FullName = request.FullName,
             Email = request.Email,
-            IsActive = true
+            IsActive = true,
+            GodownId = request.GodownId
         };
 
         var created = await _userManager.CreateAsync(user, request.Password);
@@ -66,13 +78,14 @@ public class IdentityService : IIdentityService
         if (validRoles.Count > 0)
             await _userManager.AddToRolesAsync(user, validRoles);
 
+        user = await _userManager.Users.Include(u => u.Godown).FirstAsync(u => u.Id == user.Id, ct);
         var roles = await _userManager.GetRolesAsync(user);
         return Result<UserDto>.Success(ToDto(user, roles));
     }
 
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync(CancellationToken ct = default)
     {
-        var users = _userManager.Users.ToList();
+        var users = await _userManager.Users.Include(u => u.Godown).ToListAsync(ct);
         var result = new List<UserDto>();
         foreach (var u in users)
         {
@@ -84,7 +97,7 @@ public class IdentityService : IIdentityService
 
     public async Task<UserDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var user = await _userManager.FindByIdAsync(id.ToString());
+        var user = await _userManager.Users.Include(u => u.Godown).FirstOrDefaultAsync(u => u.Id == id, ct);
         if (user is null) return null;
         var roles = await _userManager.GetRolesAsync(user);
         return ToDto(user, roles);
@@ -104,6 +117,9 @@ public class IdentityService : IIdentityService
         };
         claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
+        if (user.GodownId is Guid gid)
+            claims.Add(new Claim(BranchScope.GodownClaim, gid.ToString()));
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -118,5 +134,13 @@ public class IdentityService : IIdentityService
     }
 
     private static UserDto ToDto(ApplicationUser user, IList<string> roles) =>
-        new(user.Id, user.UserName ?? string.Empty, user.FullName, user.Email, roles);
+        new(
+            user.Id,
+            user.UserName ?? string.Empty,
+            user.FullName,
+            user.Email,
+            roles,
+            user.GodownId,
+            user.Godown?.Name,
+            user.GodownId is null);
 }

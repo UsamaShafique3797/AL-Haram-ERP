@@ -19,9 +19,19 @@ public static class StockPosting
         DateTime date, string? reference, string? notes, CancellationToken ct)
     {
         var stockItem = await db.StockItems
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(s => s.ItemId == itemId && s.GodownId == godownId, ct);
 
-        if (stockItem is null)
+        if (stockItem is not null)
+        {
+            if (stockItem.IsDeleted)
+            {
+                stockItem.IsDeleted = false;
+                stockItem.Quantity = 0m;
+                stockItem.AverageCost = 0m;
+            }
+        }
+        else
         {
             stockItem = new StockItem { ItemId = itemId, GodownId = godownId, Quantity = 0m, AverageCost = 0m };
             db.StockItems.Add(stockItem);

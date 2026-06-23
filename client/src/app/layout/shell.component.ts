@@ -1,12 +1,16 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
+import { APP_NAV } from '../core/auth/app-roles';
+import { canAccessRoute } from '../core/auth/role-access';
 import { AuthService } from '../core/services/auth.service';
+import { BranchContextService } from '../core/services/branch-context.service';
+import { GodownService } from '../core/services/godown.service';
+import { GodownDto } from '../core/models/domain.models';
 
 interface NavItem {
   label: string;
   path: string;
   icon: string;
-  disabled?: boolean;
 }
 
 interface NavGroup {
@@ -30,15 +34,13 @@ interface NavGroup {
         </div>
 
         <nav>
-          @for (group of nav; track group.title) {
+          @for (group of visibleNav(); track group.title) {
             <div class="nav-group-title">{{ group.title }}</div>
             @for (item of group.items; track item.path) {
-              <a [routerLink]="item.disabled ? null : item.path"
-                 routerLinkActive="active"
-                 [class.disabled]="item.disabled">
+              <a [routerLink]="item.path"
+                 routerLinkActive="active">
                 <span class="ico">{{ item.icon }}</span>
                 <span>{{ item.label }}</span>
-                @if (item.disabled) { <span class="soon">soon</span> }
               </a>
             }
           }
@@ -47,6 +49,19 @@ interface NavGroup {
 
       <div class="main">
         <header class="topbar">
+          @if (auth.user()?.canAccessAllBranches) {
+            <label class="branch-filter">
+              <span class="branch-label">Branch</span>
+              <select class="branch-select" [value]="branchCtx.selectedGodownId() ?? ''" (change)="onBranchChange($event)">
+                <option value="">All branches</option>
+                @for (g of godowns(); track g.id) {
+                  <option [value]="g.id">{{ g.name }}</option>
+                }
+              </select>
+            </label>
+          } @else if (auth.user()?.godownName) {
+            <span class="branch-badge">{{ auth.user()?.godownName }}</span>
+          }
           <div class="spacer"></div>
           <div class="user">
             <div class="avatar">{{ initials() }}</div>
@@ -87,7 +102,13 @@ interface NavGroup {
     .soon { margin-left: auto; font-size: .6rem; background: rgba(255,255,255,.12); padding: .1rem .4rem; border-radius: 6px; }
     .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .topbar { height: 62px; background: var(--surface); border-bottom: 1px solid var(--line);
-      display: flex; align-items: center; padding: 0 1.5rem; }
+      display: flex; align-items: center; gap: 1rem; padding: 0 1.5rem; }
+    .branch-filter { display: flex; align-items: center; gap: .5rem; }
+    .branch-label { font-size: .75rem; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+    .branch-select { padding: .45rem .65rem; border: 1px solid var(--line); border-radius: 8px;
+      font-size: .85rem; background: #fff; color: var(--ink); min-width: 160px; }
+    .branch-badge { font-size: .8rem; font-weight: 600; color: var(--brand-dark);
+      background: #fdecea; border: 1px solid #f5c6c0; padding: .35rem .75rem; border-radius: 999px; }
     .user { display: flex; align-items: center; gap: .75rem; }
     .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand); color: #fff;
       display: grid; place-items: center; font-weight: 700; font-size: .8rem; }
@@ -97,84 +118,40 @@ interface NavGroup {
     .content { padding: 1.75rem; flex: 1; }
   `],
 })
-export class ShellComponent {
+export class ShellComponent implements OnInit {
   auth = inject(AuthService);
+  branchCtx = inject(BranchContextService);
+  private godownService = inject(GodownService);
   private router = inject(Router);
 
-  nav: NavGroup[] = [
-    {
-      title: 'Main',
-      items: [{ label: 'Dashboard', path: '/dashboard', icon: '▦' }],
-    },
-    {
-      title: 'Inventory',
-      items: [
-        { label: 'Items', path: '/inventory/items', icon: '▣' },
-        { label: 'Categories', path: '/inventory/categories', icon: '◫' },
-        { label: 'Units', path: '/inventory/units', icon: '⚖' },
-        { label: 'Stock on hand', path: '/stock/levels', icon: '▥' },
-        { label: 'Adjustments', path: '/stock/adjustments', icon: '⇅' },
-        { label: 'Transfers', path: '/stock/transfers', icon: '⇄' },
-      ],
-    },
-    {
-      title: 'Production',
-      items: [
-        { label: 'Bill of materials', path: '/production/boms', icon: '⊞' },
-        { label: 'Production orders', path: '/production/orders', icon: '⚙' },
-        { label: 'Job work', path: '/production/job-work', icon: '⚒' },
-      ],
-    },
-    {
-      title: 'Parties',
-      items: [
-        { label: 'Customers', path: '/parties/customers', icon: '☺' },
-        { label: 'Suppliers', path: '/parties/suppliers', icon: '⛬' },
-      ],
-    },
-    {
-      title: 'Sales',
-      items: [
-        { label: 'Invoices', path: '/sales/invoices', icon: '↗' },
-        { label: 'Quotations', path: '/sales/quotations', icon: '✎' },
-        { label: 'Delivery challans', path: '/sales/challans', icon: '🚚' },
-        { label: 'Receipts', path: '/sales/receipts', icon: '₨' },
-        { label: 'Returns', path: '/sales/returns', icon: '⟲' },
-        { label: 'Receivables', path: '/sales/receivables', icon: '◷' },
-        { label: 'Customer ledger', path: '/sales/ledger', icon: '☰' },
-      ],
-    },
-    {
-      title: 'Purchasing',
-      items: [
-        { label: 'Purchase invoices', path: '/purchasing/invoices', icon: '↘' },
-        { label: 'Purchase orders', path: '/purchasing/orders', icon: '📋' },
-        { label: 'GRN', path: '/purchasing/grns', icon: '📦' },
-        { label: 'Supplier payments', path: '/purchasing/payments', icon: '₨' },
-        { label: 'Purchase returns', path: '/purchasing/returns', icon: '⟲' },
-        { label: 'Payables', path: '/purchasing/payables', icon: '◷' },
-        { label: 'Supplier ledger', path: '/purchasing/ledger', icon: '☰' },
-      ],
-    },
-    {
-      title: 'Operations',
-      items: [
-        { label: 'Expenses', path: '/expenses', icon: '₨' },
-        { label: 'Cash book', path: '/finance/cash-book', icon: '▤' },
-        { label: 'Day book', path: '/finance/day-book', icon: '☰' },
-        { label: 'Reports', path: '/reports', icon: '◷' },
-      ],
-    },
-    {
-      title: 'Settings',
-      items: [
-        { label: 'Godowns', path: '/settings/godowns', icon: '▤' },
-        { label: 'Users', path: '/settings/users', icon: '⚇' },
-        { label: 'Audit log', path: '/settings/audit-log', icon: '📜' },
-        { label: 'Company', path: '/settings/company', icon: '⚙' },
-      ],
-    },
-  ];
+  godowns = signal<GodownDto[]>([]);
+
+  visibleNav = computed((): NavGroup[] => {
+    const roles = this.auth.user()?.roles ?? [];
+    return APP_NAV
+      .map((group) => ({
+        title: group.title,
+        items: group.items
+          .filter((item) => canAccessRoute(roles, item.routeKey))
+          .map(({ label, path, icon }) => ({ label, path, icon })),
+      }))
+      .filter((group) => group.items.length > 0);
+  });
+
+  ngOnInit(): void {
+    if (this.auth.user()?.canAccessAllBranches) {
+      this.godownService.getAll().subscribe((list) => this.godowns.set(list));
+    }
+  }
+
+  onBranchChange(e: Event): void {
+    const select = e.target as HTMLSelectElement;
+    const value = select.value;
+    const name = value ? select.options[select.selectedIndex]?.text ?? null : null;
+    this.branchCtx.setSelectedGodown(value || null, name);
+    const url = this.router.url;
+    this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => this.router.navigateByUrl(url));
+  }
 
   initials(): string {
     const name = this.auth.user()?.fullName ?? '';
@@ -183,6 +160,7 @@ export class ShellComponent {
 
   logout(): void {
     this.auth.logout();
+    this.branchCtx.setSelectedGodown(null);
     this.router.navigate(['/login']);
   }
 }

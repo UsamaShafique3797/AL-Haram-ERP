@@ -6,6 +6,7 @@ import { CustomerService } from '../../core/services/customer.service';
 import { PaymentAccountService } from '../../core/services/payment-account.service';
 import { CustomerReceiptService } from '../../core/services/customer-receipt.service';
 import { SalesInvoiceService } from '../../core/services/sales-invoice.service';
+import { AccessService } from '../../core/services/access.service';
 import {
   CustomerDto, CustomerReceiptDto, OpenInvoiceDto, PaymentAccountDto,
   PaymentMode, PaymentModeLabels,
@@ -22,7 +23,9 @@ import {
         <p class="page-sub">Record money received and allocate it against outstanding invoices.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New receipt</button>
+      @if (access.canWrite('sales/receipts')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New receipt</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -144,6 +147,7 @@ import {
   `],
 })
 export class ReceiptsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private customerService = inject(CustomerService);
   private paymentAccountService = inject(PaymentAccountService);

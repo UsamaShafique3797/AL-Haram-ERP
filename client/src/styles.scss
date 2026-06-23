@@ -76,3 +76,47 @@ a { color: var(--brand); text-decoration: none; }
 .page-sub { color: var(--ink-soft); margin-bottom: 1.5rem; }
 .row { display: flex; gap: 1rem; flex-wrap: wrap; }
 .spacer { flex: 1; }
+
+/* Print — reports & documents: hide app chrome, show content only */
+@media print {
+  app-shell .sidebar,
+  app-shell .topbar {
+    display: none !important;
+  }
+
+  app-shell .layout {
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  app-shell .main,
+  app-shell .content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  html, body {
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .table tbody tr:hover {
+    background: transparent !important;
+  }
+
+  .print-header {
+    display: block !important;
+  }
+}

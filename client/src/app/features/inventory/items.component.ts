@@ -1,11 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { map, of, switchMap } from 'rxjs';
 import { ItemService } from '../../core/services/item.service';
 import { CategoryService } from '../../core/services/category.service';
 import { UnitService } from '../../core/services/unit.service';
 import { StockService } from '../../core/services/stock.service';
-import { CategoryDto, ItemDto, StockMovementDto, UnitDto } from '../../core/models/domain.models';
+import { GodownService } from '../../core/services/godown.service';
+import { AccessService } from '../../core/services/access.service';
+import { CategoryDto, GodownDto, ItemDto, SaveItemRequest, StockMovementDto, UnitDto } from '../../core/models/domain.models';
 
 @Component({
   selector: 'app-items',
@@ -18,7 +21,9 @@ import { CategoryDto, ItemDto, StockMovementDto, UnitDto } from '../../core/mode
         <p class="page-sub">Your product catalog with steel attributes and dual units.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New item</button>
+      @if (access.canWrite('inventory/items')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New item</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -49,8 +54,12 @@ import { CategoryDto, ItemDto, StockMovementDto, UnitDto } from '../../core/mode
               </td>
               <td style="text-align:right;white-space:nowrap">
                 <button class="btn btn-ghost btn-sm" (click)="viewMovements(i)">Movements</button>
-                <button class="btn btn-ghost btn-sm" (click)="edit(i)">Edit</button>
-                <button class="btn btn-danger btn-sm" (click)="remove(i)">Delete</button>
+                @if (access.canWrite('inventory/items')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(i)">Edit</button>
+                }
+                @if (access.canDelete('inventory/items')) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(i)">Delete</button>
+                }
               </td>
             </tr>
           } @empty {
@@ -99,7 +108,7 @@ import { CategoryDto, ItemDto, StockMovementDto, UnitDto } from '../../core/mode
 
               <h4 style="margin:.5rem 0 .25rem">Pricing & stock</h4>
               <div class="row">
-                <div class="field" style="flex:1"><label>Purchase rate</label><input type="number" step="0.01" formControlName="defaultPurchaseRate" /></div>
+                <div class="field" style="flex:1"><label>Purchase rate</label><input type="number" step="0.01" formControlName="defaultPurchaseRate" (input)="syncOpeningUnitCost()" /></div>
                 <div class="field" style="flex:1"><label>Sale rate</label><input type="number" step="0.01" formControlName="defaultSaleRate" /></div>
                 <div class="field" style="flex:1"><label>Reorder level</label><input type="number" step="0.01" formControlName="reorderLevel" /></div>
                 <div class="field" style="flex:1"><label>HS / tax code</label><input formControlName="hsCode" /></div>
@@ -127,9 +136,35 @@ import { CategoryDto, ItemDto, StockMovementDto, UnitDto } from '../../core/mode
               <button type="button" class="btn btn-ghost btn-sm" (click)="addUnit()">+ Add secondary unit</button>
 
               <div class="row" style="gap:1.5rem;margin-top:.75rem">
-                <label class="check"><input type="checkbox" formControlName="trackInventory" /> Track inventory</label>
+                <label class="check"><input type="checkbox" formControlName="trackInventory" (change)="onTrackInventoryChange()" /> Track inventory</label>
                 <label class="check"><input type="checkbox" formControlName="isActive" /> Active</label>
               </div>
+
+              @if (!editingId && form.get('trackInventory')?.value) {
+                <h4 style="margin:1rem 0 .25rem">Opening stock <span style="color:var(--muted);font-weight:400">(optional)</span></h4>
+                <label class="check" style="margin-bottom:.5rem">
+                  <input type="checkbox" formControlName="addOpeningStock" (change)="onOpeningToggle()" /> Add quantity on hand now
+                </label>
+                @if (form.get('addOpeningStock')?.value) {
+                  <div class="row">
+                    <div class="field" style="flex:1">
+                      <label>Godown</label>
+                      <select formControlName="openingGodownId">
+                        <option value="">— select —</option>
+                        @for (g of godowns(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
+                      </select>
+                    </div>
+                    <div class="field" style="flex:1"><label>Quantity (base unit)</label><input type="number" step="0.0001" formControlName="openingQuantity" /></div>
+                    <div class="field" style="flex:1">
+                      <label>Unit cost</label>
+                      <input type="number" step="0.01" formControlName="openingUnitCost" />
+                      <span class="hint">Defaults to purchase rate above.</span>
+                    </div>
+                    <div class="field" style="flex:1"><label>Date</label><input type="date" formControlName="openingDate" /></div>
+                  </div>
+                  <div class="field"><label>Notes</label><input formControlName="openingNotes" placeholder="Opening balance, initial load…" /></div>
+                }
+              }
 
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
@@ -180,18 +215,22 @@ import { CategoryDto, ItemDto, StockMovementDto, UnitDto } from '../../core/mode
     .check { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--ink-soft); }
     .badge-low { background: #fff4e6; color: var(--warn); }
     h4 { font-size: .9rem; }
+    .hint { display: block; font-size: .72rem; color: var(--muted); margin-top: .25rem; }
   `],
 })
 export class ItemsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private service = inject(ItemService);
   private categoryService = inject(CategoryService);
   private unitService = inject(UnitService);
   private stockService = inject(StockService);
+  private godownService = inject(GodownService);
 
   items = signal<ItemDto[]>([]);
   categories = signal<CategoryDto[]>([]);
   units = signal<UnitDto[]>([]);
+  godowns = signal<GodownDto[]>([]);
   ready = signal(false);
 
   showForm = signal(false);
@@ -220,6 +259,12 @@ export class ItemsComponent implements OnInit {
     reorderLevel: [0],
     trackInventory: [true],
     isActive: [true],
+    addOpeningStock: [false],
+    openingGodownId: [''],
+    openingQuantity: [0],
+    openingUnitCost: [0],
+    openingDate: [new Date().toISOString().substring(0, 10)],
+    openingNotes: [''],
     additionalUnits: this.fb.array<ReturnType<ItemsComponent['unitGroup']>>([]),
   });
 
@@ -228,7 +273,11 @@ export class ItemsComponent implements OnInit {
   ngOnInit(): void {
     this.load();
     this.categoryService.getAll().subscribe((c) => this.categories.set(c));
-    this.unitService.getAll().subscribe((u) => { this.units.set(u); this.ready.set(true); });
+    this.unitService.getAll().subscribe((u) => this.units.set(u));
+    this.godownService.getAll().subscribe((g) => {
+      this.godowns.set(g);
+      this.ready.set(true);
+    });
   }
 
   num(v: number): string { return Number(v ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 }); }
@@ -255,11 +304,19 @@ export class ItemsComponent implements OnInit {
     this.editingId = null;
     this.formError.set(null);
     this.additionalUnits.clear();
+    const defaultGodown = this.godowns().find((g) => g.isDefault) ?? this.godowns()[0];
     this.form.reset({
       code: '', name: '', categoryId: '', baseUnitId: '', brand: '', hsCode: '',
       diameter: null, grade: '', length: null, weightPerPiece: null,
       defaultPurchaseRate: 0, defaultSaleRate: 0, reorderLevel: 0, trackInventory: true, isActive: true,
+      addOpeningStock: false,
+      openingGodownId: defaultGodown?.id ?? '',
+      openingQuantity: 0,
+      openingUnitCost: 0,
+      openingDate: new Date().toISOString().substring(0, 10),
+      openingNotes: '',
     });
+    this.onOpeningToggle();
     this.showForm.set(true);
   }
 
@@ -283,21 +340,87 @@ export class ItemsComponent implements OnInit {
     this.loading.set(true);
     this.formError.set(null);
     const v = this.form.getRawValue();
-    const payload = {
-      ...v,
-      diameter: v.diameter === null || (v.diameter as any) === '' ? null : Number(v.diameter),
-      length: v.length === null || (v.length as any) === '' ? null : Number(v.length),
-      weightPerPiece: v.weightPerPiece === null || (v.weightPerPiece as any) === '' ? null : Number(v.weightPerPiece),
-      additionalUnits: v.additionalUnits.map((u: any) => ({ unitId: u.unitId, conversionFactor: Number(u.conversionFactor) })),
+    const payload: SaveItemRequest = {
+      code: v.code.trim(),
+      name: v.name.trim(),
+      categoryId: v.categoryId,
+      baseUnitId: v.baseUnitId,
+      brand: v.brand.trim() || null,
+      hsCode: v.hsCode.trim() || null,
+      defaultPurchaseRate: this.numOr(v.defaultPurchaseRate),
+      defaultSaleRate: this.numOr(v.defaultSaleRate),
+      reorderLevel: this.numOr(v.reorderLevel),
+      diameter: this.numOrNull(v.diameter),
+      grade: v.grade.trim() || null,
+      length: this.numOrNull(v.length),
+      weightPerPiece: this.numOrNull(v.weightPerPiece),
+      trackInventory: v.trackInventory,
+      isActive: v.isActive,
+      additionalUnits: v.additionalUnits
+        .filter((u) => u.unitId)
+        .map((u) => ({ unitId: u.unitId, conversionFactor: this.numOr(u.conversionFactor, 1) })),
     };
-    const req = this.editingId ? this.service.update(this.editingId, payload) : this.service.create(payload);
+
+    const postOpening = !this.editingId && v.addOpeningStock && v.trackInventory && this.numOr(v.openingQuantity) > 0;
+
+    const req = this.editingId
+      ? this.service.update(this.editingId, payload)
+      : this.service.create(payload).pipe(
+          switchMap((created) => {
+            if (!postOpening) return of(created);
+            return this.stockService.postOpeningStock({
+              itemId: created.id,
+              godownId: v.openingGodownId,
+              quantity: this.numOr(v.openingQuantity),
+              unitCost: this.numOr(v.openingUnitCost, this.numOr(v.defaultPurchaseRate)),
+              date: v.openingDate,
+              notes: v.openingNotes.trim() || null,
+            }).pipe(map(() => created));
+          }),
+        );
+
     req.subscribe({
       next: () => { this.loading.set(false); this.close(); this.load(); },
       error: (err) => {
         this.loading.set(false);
-        this.formError.set(err?.error?.errors?.[0] ?? 'Could not save item.');
+        this.formError.set(this.apiError(err, this.editingId ? 'Could not save item.' : 'Could not save item or opening stock.'));
       },
     });
+  }
+
+  onTrackInventoryChange(): void {
+    if (!this.form.get('trackInventory')?.value) {
+      this.form.patchValue({ addOpeningStock: false });
+    }
+    this.onOpeningToggle();
+  }
+
+  onOpeningToggle(): void {
+    const enabled = !!this.form.get('addOpeningStock')?.value && !!this.form.get('trackInventory')?.value;
+    const godown = this.form.get('openingGodownId');
+    const qty = this.form.get('openingQuantity');
+    const cost = this.form.get('openingUnitCost');
+    if (enabled) {
+      godown?.setValidators([Validators.required]);
+      qty?.setValidators([Validators.required, Validators.min(0.0001)]);
+      cost?.setValidators([Validators.required, Validators.min(0)]);
+      this.syncOpeningUnitCost();
+    } else {
+      godown?.clearValidators();
+      qty?.clearValidators();
+      cost?.clearValidators();
+    }
+    godown?.updateValueAndValidity();
+    qty?.updateValueAndValidity();
+    cost?.updateValueAndValidity();
+  }
+
+  syncOpeningUnitCost(): void {
+    if (!this.form.get('addOpeningStock')?.value) return;
+    const rate = this.numOr(this.form.get('defaultPurchaseRate')?.value);
+    if (rate > 0) {
+      this.form.patchValue({ openingUnitCost: rate });
+    }
   }
 
   remove(i: ItemDto): void {
@@ -316,5 +439,28 @@ export class ItemsComponent implements OnInit {
   }
 
   closeMovements(): void { this.showMovements.set(false); }
-  close(): void { this.showForm.set(false); }
+  close(): void { this.showForm.set(false); this.editingId = null; }
+
+  private numOr(v: unknown, fallback = 0): number {
+    if (v === null || v === undefined || v === '') return fallback;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  private numOrNull(v: unknown): number | null {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private apiError(err: { error?: { errors?: string[] | Record<string, string[]>; title?: string } }, fallback: string): string {
+    const body = err?.error;
+    if (!body) return fallback;
+    if (Array.isArray(body.errors) && body.errors.length) return body.errors[0];
+    if (body.errors && typeof body.errors === 'object') {
+      const first = Object.values(body.errors)[0];
+      if (Array.isArray(first) && first.length) return first[0];
+    }
+    return body.title ?? fallback;
+  }
 }

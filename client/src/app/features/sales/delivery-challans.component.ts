@@ -7,6 +7,7 @@ import { CustomerService } from '../../core/services/customer.service';
 import { GodownService } from '../../core/services/godown.service';
 import { ItemService } from '../../core/services/item.service';
 import { DeliveryChallanService } from '../../core/services/remaining-features.service';
+import { AccessService } from '../../core/services/access.service';
 import { CustomerDto, DeliveryChallanDto, GodownDto, ItemDto } from '../../core/models/domain.models';
 
 @Component({
@@ -20,7 +21,9 @@ import { CustomerDto, DeliveryChallanDto, GodownDto, ItemDto } from '../../core/
         <p class="page-sub">Dispatch goods to customers without billing (stock out only).</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New challan</button>
+      @if (access.canWrite('sales/challans')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New challan</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -128,6 +131,7 @@ import { CustomerDto, DeliveryChallanDto, GodownDto, ItemDto } from '../../core/
   `],
 })
 export class DeliveryChallansComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private challanService = inject(DeliveryChallanService);
   private customerService = inject(CustomerService);

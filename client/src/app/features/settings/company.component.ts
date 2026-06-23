@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CompanyService } from '../../core/services/company.service';
-import { AuthService } from '../../core/services/auth.service';
+import { AccessService } from '../../core/services/access.service';
 
 @Component({
   selector: 'app-company-settings',
@@ -55,7 +55,7 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
         </div>
 
-        @if (canEdit) {
+        @if (access.canWrite('settings/company')) {
           <button class="btn btn-primary" [disabled]="form.invalid || loading()">
             {{ loading() ? 'Saving…' : 'Save changes' }}
           </button>
@@ -67,14 +67,13 @@ import { AuthService } from '../../core/services/auth.service';
   `,
 })
 export class CompanyComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private service = inject(CompanyService);
-  private auth = inject(AuthService);
 
   loading = signal(false);
   saved = signal(false);
   error = signal<string | null>(null);
-  canEdit = this.auth.hasRole('Owner', 'Manager');
 
   form = this.fb.nonNullable.group({
     name: ['', Validators.required],

@@ -4,6 +4,7 @@ import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { StockService } from '../../core/services/stock.service';
 import { ItemService } from '../../core/services/item.service';
 import { GodownService } from '../../core/services/godown.service';
+import { AccessService } from '../../core/services/access.service';
 import { AdjustmentDirection, GodownDto, ItemDto, StockAdjustmentDto } from '../../core/models/domain.models';
 
 @Component({
@@ -17,7 +18,9 @@ import { AdjustmentDirection, GodownDto, ItemDto, StockAdjustmentDto } from '../
         <p class="page-sub">Record wastage, damage, rust loss, or counting corrections.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New adjustment</button>
+      @if (access.canWrite('stock/adjustments')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New adjustment</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -108,6 +111,7 @@ import { AdjustmentDirection, GodownDto, ItemDto, StockAdjustmentDto } from '../
   `],
 })
 export class AdjustmentsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private stockService = inject(StockService);
   private itemService = inject(ItemService);

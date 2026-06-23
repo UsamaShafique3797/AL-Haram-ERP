@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
+import { AccessService } from '../../core/services/access.service';
 import { ExpenseCategoryDto } from '../../core/models/domain.models';
 
 @Component({
@@ -16,7 +17,9 @@ import { ExpenseCategoryDto } from '../../core/models/domain.models';
       </div>
       <div class="spacer"></div>
       <a class="btn btn-ghost" routerLink="/expenses">← Expenses</a>
-      <button class="btn btn-primary" (click)="openNew()">+ New category</button>
+      @if (access.canWrite('expenses/categories')) {
+        <button class="btn btn-primary" (click)="openNew()">+ New category</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -35,8 +38,12 @@ import { ExpenseCategoryDto } from '../../core/models/domain.models';
                 @else { <span class="badge badge-muted">Inactive</span> }
               </td>
               <td style="text-align:right">
-                <button class="btn btn-ghost btn-sm" (click)="edit(c)">Edit</button>
-                <button class="btn btn-danger btn-sm" (click)="remove(c)">Delete</button>
+                @if (access.canWrite('expenses/categories')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(c)">Edit</button>
+                }
+                @if (access.canDelete('expenses/categories')) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(c)">Delete</button>
+                }
               </td>
             </tr>
           } @empty {
@@ -78,6 +85,7 @@ import { ExpenseCategoryDto } from '../../core/models/domain.models';
   `],
 })
 export class ExpenseCategoriesComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private service = inject(ExpenseCategoryService);
 

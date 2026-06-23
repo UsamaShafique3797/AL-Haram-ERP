@@ -191,6 +191,15 @@ export interface OpeningStockRequest {
   notes?: string | null;
 }
 
+export interface UpdateStockLevelRequest {
+  itemId: string;
+  godownId: string;
+  quantity: number;
+  unitCost: number;
+  date: string;
+  notes?: string | null;
+}
+
 export enum AdjustmentDirection {
   Increase = 1,
   Decrease = 2,

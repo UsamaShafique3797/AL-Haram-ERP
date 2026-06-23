@@ -1,5 +1,7 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Godowns;
 using AlHaram.Domain.Entities;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,12 +10,21 @@ namespace AlHaram.Infrastructure.Services;
 public class GodownService : IGodownService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public GodownService(AppDbContext db) => _db = db;
+    public GodownService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<GodownDto>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _db.Godowns
+        var query = _db.Godowns.AsQueryable();
+        if (!_branch.CanAccessAllBranches)
+            query = query.ForBranch(_branch);
+
+        return await query
             .OrderByDescending(g => g.IsDefault)
             .ThenBy(g => g.Name)
             .Select(g => ToDto(g))

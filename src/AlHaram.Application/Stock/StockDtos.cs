@@ -39,6 +39,14 @@ public record OpeningStockRequest(
     DateTime Date,
     string? Notes);
 
+public record UpdateStockLevelRequest(
+    Guid ItemId,
+    Guid GodownId,
+    decimal Quantity,
+    decimal UnitCost,
+    DateTime Date,
+    string? Notes);
+
 public record StockAdjustmentLineDto(
     Guid Id,
     Guid ItemId,
@@ -78,6 +86,8 @@ public interface IStockService
     Task<IReadOnlyList<StockLevelDto>> GetLevelsAsync(CancellationToken ct = default);
     Task<IReadOnlyList<StockMovementDto>> GetMovementsAsync(Guid itemId, Guid? godownId = null, CancellationToken ct = default);
     Task<Result<StockMovementDto>> PostOpeningStockAsync(OpeningStockRequest request, CancellationToken ct = default);
+    Task<Result<StockLevelDto>> UpdateStockLevelAsync(UpdateStockLevelRequest request, CancellationToken ct = default);
+    Task<Result> DeleteStockLevelAsync(Guid itemId, Guid godownId, CancellationToken ct = default);
 
     Task<IReadOnlyList<StockAdjustmentDto>> GetAdjustmentsAsync(CancellationToken ct = default);
     Task<StockAdjustmentDto?> GetAdjustmentByIdAsync(Guid id, CancellationToken ct = default);

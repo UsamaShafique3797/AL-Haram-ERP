@@ -3,6 +3,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SalesInvoiceService } from '../../core/services/sales-invoice.service';
 import { SalesReturnService } from '../../core/services/sales-return.service';
+import { AccessService } from '../../core/services/access.service';
 import { SalesInvoiceDto, SalesInvoiceLineDto, SalesReturnDto } from '../../core/models/domain.models';
 
 @Component({
@@ -16,7 +17,9 @@ import { SalesInvoiceDto, SalesInvoiceLineDto, SalesReturnDto } from '../../core
         <p class="page-sub">Credit notes against existing invoices — restocks items and reduces what the customer owes.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!invoices().length">+ New return</button>
+      @if (access.canWrite('sales/returns')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!invoices().length">+ New return</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -115,6 +118,7 @@ import { SalesInvoiceDto, SalesInvoiceLineDto, SalesReturnDto } from '../../core
   `],
 })
 export class ReturnsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private invoiceService = inject(SalesInvoiceService);
   private returnService = inject(SalesReturnService);

@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { GodownService } from '../../core/services/godown.service';
 import { ItemService } from '../../core/services/item.service';
 import { StockTransferService } from '../../core/services/purchasing-extra.service';
+import { AccessService } from '../../core/services/access.service';
 import {
   GodownDto, ItemDto, StockTransferDto, StockTransferStatus, StockTransferStatusLabels,
 } from '../../core/models/domain.models';
@@ -20,7 +21,9 @@ import {
         <p class="page-sub">Move inventory between godowns.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New transfer</button>
+      @if (access.canWrite('stock/transfers')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New transfer</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -40,7 +43,7 @@ import {
               <td>{{ statusLabel(t.status) }}</td>
               <td>{{ t.lines.length }}</td>
               <td style="text-align:right">
-                @if (t.status === draftStatus) {
+                @if (t.status === draftStatus && access.canWrite('stock/transfers')) {
                   <button class="btn btn-primary btn-sm" (click)="complete(t)" [disabled]="actionId() === t.id">
                     {{ actionId() === t.id ? 'Completing…' : 'Complete' }}
                   </button>
@@ -120,6 +123,7 @@ import {
   `],
 })
 export class StockTransfersComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private transferService = inject(StockTransferService);
   private godownService = inject(GodownService);

@@ -6,6 +6,7 @@ import { SupplierService } from '../../core/services/supplier.service';
 import { GodownService } from '../../core/services/godown.service';
 import { ItemService } from '../../core/services/item.service';
 import { PurchaseOrderService } from '../../core/services/purchasing-extra.service';
+import { AccessService } from '../../core/services/access.service';
 import {
   GodownDto, ItemDto, PurchaseOrderDto, PurchaseOrderStatus,
   PurchaseOrderStatusLabels, SupplierDto,
@@ -22,7 +23,9 @@ import {
         <p class="page-sub">Send orders to suppliers before goods are received.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New PO</button>
+      @if (access.canWrite('purchasing/orders')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New PO</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -153,6 +156,7 @@ import {
   `],
 })
 export class PurchaseOrdersComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private poService = inject(PurchaseOrderService);
   private supplierService = inject(SupplierService);

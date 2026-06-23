@@ -1,7 +1,10 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UserService } from '../../core/services/user.service';
+import { GodownService } from '../../core/services/godown.service';
+import { AccessService } from '../../core/services/access.service';
 import { UserDto } from '../../core/models/auth.models';
+import { GodownDto } from '../../core/models/domain.models';
 
 @Component({
   selector: 'app-users',
@@ -14,26 +17,29 @@ import { UserDto } from '../../core/models/auth.models';
         <p class="page-sub">People who can access the system.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()">+ New user</button>
+      @if (access.canWrite('settings/users')) {
+        <button class="btn btn-primary" (click)="openNew()">+ New user</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
       <table class="table">
-        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Roles</th></tr></thead>
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Branch</th><th>Roles</th></tr></thead>
         <tbody>
           @for (u of users(); track u.id) {
             <tr>
               <td>{{ u.fullName }}</td>
               <td>{{ u.userName }}</td>
               <td>{{ u.email || '—' }}</td>
+              <td>{{ u.canAccessAllBranches ? 'All branches' : (u.godownName || '—') }}</td>
               <td>
                 @for (r of u.roles; track r) { <span class="badge badge-muted" style="margin-right:.3rem">{{ r }}</span> }
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="4" style="text-align:center;color:var(--muted)">No users yet.</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:var(--muted)">No users yet.</td></tr>
           }
         </tbody>
       </table>
@@ -53,6 +59,16 @@ import { UserDto } from '../../core/models/auth.models';
               <div class="row">
                 <div class="field" style="flex:1"><label>Email</label><input formControlName="email" /></div>
                 <div class="field" style="flex:1"><label>Password</label><input type="password" formControlName="password" /></div>
+              </div>
+              <div class="field">
+                <label>Branch</label>
+                <select formControlName="godownId">
+                  <option value="">All branches (admin)</option>
+                  @for (g of godowns(); track g.id) {
+                    <option [value]="g.id">{{ g.name }}</option>
+                  }
+                </select>
+                <span class="hint">Leave as “All branches” for company admin. Pick one branch for a branch owner/manager.</span>
               </div>
               <div class="field">
                 <label>Roles</label>
@@ -82,13 +98,17 @@ import { UserDto } from '../../core/models/auth.models';
     .modal { width: 100%; max-width: 520px; }
     .roles { display: flex; flex-wrap: wrap; gap: .75rem; }
     .check { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--ink-soft); }
+    .hint { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
   `],
 })
 export class UsersComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private service = inject(UserService);
+  private godownService = inject(GodownService);
 
   users = signal<UserDto[]>([]);
+  godowns = signal<GodownDto[]>([]);
   roles = signal<string[]>([]);
   showForm = signal(false);
   loading = signal(false);
@@ -101,11 +121,13 @@ export class UsersComponent implements OnInit {
     userName: ['', Validators.required],
     email: [''],
     password: ['', [Validators.required, Validators.minLength(6)]],
+    godownId: [''],
   });
 
   ngOnInit(): void {
     this.load();
     this.service.getRoles().subscribe((r) => this.roles.set(r));
+    this.godownService.getAll().subscribe((g) => this.godowns.set(g));
   }
 
   load(): void {
@@ -118,7 +140,7 @@ export class UsersComponent implements OnInit {
   openNew(): void {
     this.selectedRoles.clear();
     this.formError.set(null);
-    this.form.reset({ fullName: '', userName: '', email: '', password: '' });
+    this.form.reset({ fullName: '', userName: '', email: '', password: '', godownId: '' });
     this.showForm.set(true);
   }
 
@@ -131,7 +153,13 @@ export class UsersComponent implements OnInit {
     if (this.form.invalid) return;
     this.loading.set(true);
     this.formError.set(null);
-    this.service.create({ ...this.form.getRawValue(), roles: [...this.selectedRoles] }).subscribe({
+    const raw = this.form.getRawValue();
+    const payload = {
+      ...raw,
+      godownId: raw.godownId || null,
+      roles: [...this.selectedRoles],
+    };
+    this.service.create(payload).subscribe({
       next: () => { this.loading.set(false); this.close(); this.load(); },
       error: (err) => {
         this.loading.set(false);

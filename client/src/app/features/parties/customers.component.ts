@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CustomerService } from '../../core/services/customer.service';
+import { AccessService } from '../../core/services/access.service';
 import { CustomerDto, CustomerType, CustomerTypeLabels } from '../../core/models/domain.models';
 
 @Component({
@@ -14,7 +15,9 @@ import { CustomerDto, CustomerType, CustomerTypeLabels } from '../../core/models
         <p class="page-sub">Retail, wholesale, and contractor accounts.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()">+ New customer</button>
+      @if (access.canWrite('parties/customers')) {
+        <button class="btn btn-primary" (click)="openNew()">+ New customer</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -37,8 +40,12 @@ import { CustomerDto, CustomerType, CustomerTypeLabels } from '../../core/models
                 @else { <span class="badge badge-muted">Inactive</span> }
               </td>
               <td style="text-align:right">
-                <button class="btn btn-ghost btn-sm" (click)="edit(c)">Edit</button>
-                <button class="btn btn-danger btn-sm" (click)="remove(c)">Delete</button>
+                @if (access.canWrite('parties/customers')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(c)">Edit</button>
+                }
+                @if (access.canDelete('parties/customers')) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(c)">Delete</button>
+                }
               </td>
             </tr>
           } @empty {
@@ -102,6 +109,7 @@ import { CustomerDto, CustomerType, CustomerTypeLabels } from '../../core/models
   `],
 })
 export class CustomersComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private service = inject(CustomerService);
 

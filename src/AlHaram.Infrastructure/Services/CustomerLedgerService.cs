@@ -1,4 +1,6 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Sales;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,8 +9,13 @@ namespace AlHaram.Infrastructure.Services;
 public class CustomerLedgerService : ICustomerLedgerService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public CustomerLedgerService(AppDbContext db) => _db = db;
+    public CustomerLedgerService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<CustomerLedgerDto> GetLedgerAsync(Guid customerId, CancellationToken ct = default)
     {
@@ -17,6 +24,7 @@ public class CustomerLedgerService : ICustomerLedgerService
 
         var invoices = await _db.SalesInvoices
             .Where(i => i.CustomerId == customerId)
+            .ForBranch(_branch)
             .Select(i => new { i.Id, i.Number, i.Date, i.Total, i.PaidAmount })
             .ToListAsync(ct);
 
@@ -28,6 +36,7 @@ public class CustomerLedgerService : ICustomerLedgerService
 
         var returns = await _db.SalesReturns
             .Where(r => r.CustomerId == customerId)
+            .ForBranch(_branch)
             .Select(r => new { r.Id, r.Number, r.Date, r.Total, InvoiceNumber = r.SalesInvoice!.Number })
             .ToListAsync(ct);
 
@@ -50,14 +59,15 @@ public class CustomerLedgerService : ICustomerLedgerService
             .ToList();
 
         var rows = new List<CustomerLedgerEntryDto>();
-        var balance = customer.OpeningBalance;
+        var opening = _branch.EffectiveGodownId is null ? customer.OpeningBalance : 0m;
+        var balance = opening;
 
-        if (customer.OpeningBalance != 0)
+        if (opening != 0)
             rows.Add(new CustomerLedgerEntryDto(
                 customer.OpeningBalanceAsOf ?? customer.CreatedAt,
                 "Opening balance", "—", null, null,
-                customer.OpeningBalance > 0 ? customer.OpeningBalance : 0m,
-                customer.OpeningBalance < 0 ? -customer.OpeningBalance : 0m,
+                opening > 0 ? opening : 0m,
+                opening < 0 ? -opening : 0m,
                 balance));
 
         foreach (var e in ordered)
@@ -68,7 +78,7 @@ public class CustomerLedgerService : ICustomerLedgerService
 
         return new CustomerLedgerDto(
             customer.Id, customer.Name,
-            customer.OpeningBalance, customer.OpeningBalanceAsOf,
+            opening, customer.OpeningBalanceAsOf,
             rows.Sum(r => r.Debit), rows.Sum(r => r.Credit),
             balance, rows);
     }
@@ -79,6 +89,7 @@ public class CustomerLedgerService : ICustomerLedgerService
             .Select(c => new { c.Id, c.Name, c.Phone, c.OpeningBalance }).ToListAsync(ct);
 
         var invoiceTotals = await _db.SalesInvoices
+            .ForBranch(_branch)
             .GroupBy(i => i.CustomerId)
             .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Total), Paid = g.Sum(x => x.PaidAmount) })
             .ToDictionaryAsync(x => x.Id, ct);
@@ -89,21 +100,26 @@ public class CustomerLedgerService : ICustomerLedgerService
             .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
 
         var returnTotals = await _db.SalesReturns
+            .ForBranch(_branch)
             .GroupBy(r => r.CustomerId)
             .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Total) })
             .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
 
+        var branchScoped = _branch.EffectiveGodownId is not null;
         var result = new List<ReceivableDto>();
         foreach (var c in customers)
         {
             var invSummary = invoiceTotals.GetValueOrDefault(c.Id);
             decimal invoiced = invSummary?.Total ?? 0m;
             decimal paidAtSale = invSummary?.Paid ?? 0m;
-            decimal received = receiptTotals.GetValueOrDefault(c.Id);
+            decimal received = branchScoped ? 0m : receiptTotals.GetValueOrDefault(c.Id);
             decimal returned = returnTotals.GetValueOrDefault(c.Id);
+            var opening = branchScoped ? 0m : c.OpeningBalance;
 
-            var outstanding = c.OpeningBalance + invoiced - paidAtSale - received - returned;
-            result.Add(new ReceivableDto(c.Id, c.Name, c.Phone, c.OpeningBalance,
+            var outstanding = opening + invoiced - paidAtSale - received - returned;
+            if (branchScoped && outstanding <= 0.0049m && invoiced == 0m) continue;
+
+            result.Add(new ReceivableDto(c.Id, c.Name, c.Phone, opening,
                 invoiced, returned, received + paidAtSale, outstanding));
         }
         return result.OrderByDescending(r => r.Outstanding).ToList();

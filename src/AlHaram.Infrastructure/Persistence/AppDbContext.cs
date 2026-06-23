@@ -74,6 +74,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
 
         // Friendlier Identity table names
         builder.Entity<ApplicationUser>().ToTable("Users");
+        builder.Entity<ApplicationUser>()
+            .HasOne(u => u.Godown)
+            .WithMany()
+            .HasForeignKey(u => u.GodownId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Entity<ApplicationRole>().ToTable("Roles");
         builder.Entity<Microsoft.AspNetCore.Identity.IdentityUserRole<Guid>>().ToTable("UserRoles");
         builder.Entity<Microsoft.AspNetCore.Identity.IdentityUserClaim<Guid>>().ToTable("UserClaims");

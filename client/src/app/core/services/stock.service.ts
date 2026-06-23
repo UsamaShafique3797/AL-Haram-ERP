@@ -8,6 +8,7 @@ import {
   StockAdjustmentDto,
   StockLevelDto,
   StockMovementDto,
+  UpdateStockLevelRequest,
 } from '../models/domain.models';
 
 @Injectable({ providedIn: 'root' })
@@ -27,6 +28,14 @@ export class StockService {
 
   postOpeningStock(request: OpeningStockRequest): Observable<StockMovementDto> {
     return this.http.post<StockMovementDto>(`${this.api}/opening`, request);
+  }
+
+  updateStockLevel(request: UpdateStockLevelRequest): Observable<StockLevelDto> {
+    return this.http.put<StockLevelDto>(`${this.api}/levels`, request);
+  }
+
+  deleteStockLevel(itemId: string, godownId: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/levels/${itemId}/${godownId}`);
   }
 
   getAdjustments(): Observable<StockAdjustmentDto[]> {

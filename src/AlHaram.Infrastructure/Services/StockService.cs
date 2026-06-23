@@ -1,7 +1,9 @@
 using AlHaram.Application.Common.Models;
+using AlHaram.Application.Common;
 using AlHaram.Application.Stock;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,14 +12,20 @@ namespace AlHaram.Infrastructure.Services;
 public class StockService : IStockService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public StockService(AppDbContext db) => _db = db;
+    public StockService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<StockLevelDto>> GetLevelsAsync(CancellationToken ct = default)
     {
         return await _db.StockItems
             .Include(s => s.Item)
             .Include(s => s.Godown)
+            .ForBranch(_branch)
             .OrderBy(s => s.Item!.Name)
             .Select(s => new StockLevelDto(
                 s.ItemId,
@@ -68,6 +76,9 @@ public class StockService : IStockService
     public async Task<Result<StockMovementDto>> PostOpeningStockAsync(
         OpeningStockRequest request, CancellationToken ct = default)
     {
+        if (!_branch.CanUseGodown(request.GodownId))
+            return Result<StockMovementDto>.Failure("You can only post stock for your assigned branch.");
+
         if (request.Quantity <= 0)
             return Result<StockMovementDto>.Failure("Opening quantity must be greater than zero.");
         if (request.UnitCost < 0)
@@ -89,6 +100,86 @@ public class StockService : IStockService
             movement.Id, movement.Date, movement.Type.ToString(), item.Id, item.Name,
             request.GodownId, godownName, movement.Quantity, movement.UnitCost,
             movement.QuantityAfter, movement.AverageCostAfter, movement.Reference, movement.Notes));
+    }
+
+    public async Task<Result<StockLevelDto>> UpdateStockLevelAsync(
+        UpdateStockLevelRequest request, CancellationToken ct = default)
+    {
+        if (request.Quantity < 0)
+            return Result<StockLevelDto>.Failure("Quantity cannot be negative.");
+        if (request.UnitCost < 0)
+            return Result<StockLevelDto>.Failure("Unit cost cannot be negative.");
+
+        var stockItem = await _db.StockItems
+            .Include(s => s.Item).ThenInclude(i => i!.BaseUnit)
+            .Include(s => s.Godown)
+            .FirstOrDefaultAsync(s => s.ItemId == request.ItemId && s.GodownId == request.GodownId, ct);
+
+        if (stockItem is null)
+            return Result<StockLevelDto>.Failure("No stock on hand for this item in the selected godown.");
+
+        var oldQty = stockItem.Quantity;
+        var oldCost = stockItem.AverageCost;
+        var qtyDelta = request.Quantity - oldQty;
+        var newCost = request.Quantity > 0 ? request.UnitCost : 0m;
+
+        stockItem.Quantity = request.Quantity;
+        stockItem.AverageCost = newCost;
+
+        if (qtyDelta != 0 || oldCost != newCost)
+        {
+            _db.StockMovements.Add(new StockMovement
+            {
+                ItemId = request.ItemId,
+                GodownId = request.GodownId,
+                Type = qtyDelta >= 0 ? MovementType.AdjustmentIncrease : MovementType.AdjustmentDecrease,
+                Date = request.Date,
+                Quantity = qtyDelta != 0 ? qtyDelta : 0m,
+                UnitCost = newCost,
+                QuantityAfter = request.Quantity,
+                AverageCostAfter = newCost,
+                Reference = "Stock correction",
+                Notes = request.Notes ?? (oldCost != newCost && qtyDelta == 0
+                    ? $"Average cost updated from {oldCost:N2} to {newCost:N2}"
+                    : null),
+            });
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return Result<StockLevelDto>.Success(ToLevelDto(stockItem));
+    }
+
+    public async Task<Result> DeleteStockLevelAsync(Guid itemId, Guid godownId, CancellationToken ct = default)
+    {
+        var stockItem = await _db.StockItems
+            .FirstOrDefaultAsync(s => s.ItemId == itemId && s.GodownId == godownId, ct);
+
+        if (stockItem is null)
+            return Result.Failure("No stock on hand for this item in the selected godown.");
+
+        if (stockItem.Quantity > 0)
+        {
+            _db.StockMovements.Add(new StockMovement
+            {
+                ItemId = itemId,
+                GodownId = godownId,
+                Type = MovementType.AdjustmentDecrease,
+                Date = DateTime.UtcNow,
+                Quantity = -stockItem.Quantity,
+                UnitCost = stockItem.AverageCost,
+                QuantityAfter = 0m,
+                AverageCostAfter = 0m,
+                Reference = "Stock removed",
+                Notes = "Stock on hand deleted",
+            });
+            stockItem.Quantity = 0m;
+            stockItem.AverageCost = 0m;
+        }
+
+        _db.StockItems.Remove(stockItem);
+        await _db.SaveChangesAsync(ct);
+        return Result.Success();
     }
 
     public async Task<IReadOnlyList<StockAdjustmentDto>> GetAdjustmentsAsync(CancellationToken ct = default)
@@ -181,14 +272,7 @@ public class StockService : IStockService
         Guid itemId, Guid godownId, MovementType type, decimal signedQty, decimal incomingUnitCost,
         DateTime date, string? reference, string? notes, CancellationToken ct)
     {
-        var stockItem = await _db.StockItems
-            .FirstOrDefaultAsync(s => s.ItemId == itemId && s.GodownId == godownId, ct);
-
-        if (stockItem is null)
-        {
-            stockItem = new StockItem { ItemId = itemId, GodownId = godownId, Quantity = 0m, AverageCost = 0m };
-            _db.StockItems.Add(stockItem);
-        }
+        var stockItem = await GetOrCreateStockItemAsync(itemId, godownId, ct);
 
         decimal appliedUnitCost;
         if (signedQty >= 0)
@@ -224,6 +308,28 @@ public class StockService : IStockService
         return movement;
     }
 
+    private async Task<StockItem> GetOrCreateStockItemAsync(Guid itemId, Guid godownId, CancellationToken ct)
+    {
+        var stockItem = await _db.StockItems
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.ItemId == itemId && s.GodownId == godownId, ct);
+
+        if (stockItem is not null)
+        {
+            if (stockItem.IsDeleted)
+            {
+                stockItem.IsDeleted = false;
+                stockItem.Quantity = 0m;
+                stockItem.AverageCost = 0m;
+            }
+            return stockItem;
+        }
+
+        stockItem = new StockItem { ItemId = itemId, GodownId = godownId, Quantity = 0m, AverageCost = 0m };
+        _db.StockItems.Add(stockItem);
+        return stockItem;
+    }
+
     private async Task<string> NextAdjustmentNumberAsync(CancellationToken ct)
     {
         var count = await _db.StockAdjustments.IgnoreQueryFilters().CountAsync(ct);
@@ -235,4 +341,18 @@ public class StockService : IStockService
             a.Lines.Select(l => new StockAdjustmentLineDto(
                 l.Id, l.ItemId, l.Item?.Code ?? string.Empty, l.Item?.Name ?? string.Empty,
                 l.Direction, l.Quantity, l.UnitCost, l.Notes)).ToList());
+
+    private static StockLevelDto ToLevelDto(StockItem s) =>
+        new(
+            s.ItemId,
+            s.Item!.Code,
+            s.Item!.Name,
+            s.Item!.BaseUnit!.Code,
+            s.GodownId,
+            s.Godown!.Name,
+            s.Quantity,
+            s.AverageCost,
+            s.Quantity * s.AverageCost,
+            s.Item!.ReorderLevel,
+            s.Item!.TrackInventory && s.Item!.ReorderLevel > 0 && s.Quantity < s.Item!.ReorderLevel);
 }

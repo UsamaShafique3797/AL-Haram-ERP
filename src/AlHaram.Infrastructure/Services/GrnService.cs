@@ -3,6 +3,7 @@ using AlHaram.Application.Common.Models;
 using AlHaram.Application.Purchasing;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Common;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,13 @@ public class GrnService : IGrnService
 {
     private readonly AppDbContext _db;
     private readonly IAuditLogService _audit;
+    private readonly IBranchScope _branch;
 
-    public GrnService(AppDbContext db, IAuditLogService audit)
+    public GrnService(AppDbContext db, IAuditLogService audit, IBranchScope branch)
     {
         _db = db;
         _audit = audit;
+        _branch = branch;
     }
 
     public async Task<IReadOnlyList<GrnDto>> GetAllAsync(Guid? supplierId = null, CancellationToken ct = default)
@@ -28,7 +31,8 @@ public class GrnService : IGrnService
             .Include(g => g.PurchaseOrder)
             .Include(g => g.Lines).ThenInclude(l => l.Item)
             .Include(g => g.Lines).ThenInclude(l => l.Unit)
-            .AsQueryable();
+            .AsQueryable()
+            .ForBranch(_branch);
 
         if (supplierId is not null)
             query = query.Where(g => g.SupplierId == supplierId);

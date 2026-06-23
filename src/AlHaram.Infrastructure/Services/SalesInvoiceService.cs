@@ -1,7 +1,9 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Common.Models;
 using AlHaram.Application.Sales;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,8 +12,13 @@ namespace AlHaram.Infrastructure.Services;
 public class SalesInvoiceService : ISalesInvoiceService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public SalesInvoiceService(AppDbContext db) => _db = db;
+    public SalesInvoiceService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<SalesInvoiceDto>> GetAllAsync(Guid? customerId = null, CancellationToken ct = default)
     {
@@ -21,7 +28,8 @@ public class SalesInvoiceService : ISalesInvoiceService
             .Include(i => i.PaymentAccount)
             .Include(i => i.Lines).ThenInclude(l => l.Item)
             .Include(i => i.Lines).ThenInclude(l => l.Unit)
-            .AsQueryable();
+            .AsQueryable()
+            .ForBranch(_branch);
 
         if (customerId is not null)
             query = query.Where(i => i.CustomerId == customerId);
@@ -84,6 +92,9 @@ public class SalesInvoiceService : ISalesInvoiceService
 
     public async Task<Result<SalesInvoiceDto>> CreateAsync(SaveSalesInvoiceRequest request, CancellationToken ct = default)
     {
+        if (!_branch.CanUseGodown(request.GodownId))
+            return Result<SalesInvoiceDto>.Failure("You can only create records for your assigned branch.");
+
         if (request.Lines is null || request.Lines.Count == 0)
             return Result<SalesInvoiceDto>.Failure("Add at least one line.");
 

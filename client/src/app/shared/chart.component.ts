@@ -36,6 +36,7 @@ export class ChartComponent implements AfterViewInit, OnChanges, OnDestroy {
   private render(): void {
     this.chart?.destroy();
     this.chart = new Chart(this.canvasRef.nativeElement, this.config);
+    requestAnimationFrame(() => this.chart?.resize());
   }
 
   ngOnDestroy(): void {

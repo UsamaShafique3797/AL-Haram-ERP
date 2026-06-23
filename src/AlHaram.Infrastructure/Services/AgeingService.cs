@@ -1,4 +1,6 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Sales;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,15 +9,22 @@ namespace AlHaram.Infrastructure.Services;
 public class AgeingService : IAgeingService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public AgeingService(AppDbContext db) => _db = db;
+    public AgeingService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<ReceivableAgeingDto>> GetReceivablesAgeingAsync(CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;
         var customers = await _db.Customers.OrderBy(c => c.Name).ToListAsync(ct);
+        var branchScoped = _branch.EffectiveGodownId is not null;
 
         var invoices = await _db.SalesInvoices
+            .ForBranch(_branch)
             .Select(i => new { i.Id, i.CustomerId, i.Date, i.Total, i.PaidAmount })
             .ToListAsync(ct);
 
@@ -30,9 +39,9 @@ public class AgeingService : IAgeingService
         {
             var custInvoices = invoices.Where(i => i.CustomerId == customer.Id).ToList();
             var buckets = CreateBuckets();
-            decimal total = customer.OpeningBalance > 0 ? customer.OpeningBalance : 0m;
+            decimal total = !branchScoped && customer.OpeningBalance > 0 ? customer.OpeningBalance : 0m;
 
-            if (customer.OpeningBalance > 0)
+            if (!branchScoped && customer.OpeningBalance > 0)
                 AddToBucket(buckets, 999, customer.OpeningBalance);
 
             foreach (var inv in custInvoices)
@@ -60,8 +69,10 @@ public class AgeingService : IAgeingService
     {
         var today = DateTime.UtcNow.Date;
         var suppliers = await _db.Suppliers.OrderBy(s => s.Name).ToListAsync(ct);
+        var branchScoped = _branch.EffectiveGodownId is not null;
 
         var invoices = await _db.PurchaseInvoices
+            .ForBranch(_branch)
             .Select(i => new { i.Id, i.SupplierId, i.Date, i.Total, i.PaidAmount })
             .ToListAsync(ct);
 
@@ -76,9 +87,9 @@ public class AgeingService : IAgeingService
         {
             var supInvoices = invoices.Where(i => i.SupplierId == supplier.Id).ToList();
             var buckets = CreateBuckets();
-            decimal total = supplier.OpeningBalance > 0 ? supplier.OpeningBalance : 0m;
+            decimal total = !branchScoped && supplier.OpeningBalance > 0 ? supplier.OpeningBalance : 0m;
 
-            if (supplier.OpeningBalance > 0)
+            if (!branchScoped && supplier.OpeningBalance > 0)
                 AddToBucket(buckets, 999, supplier.OpeningBalance);
 
             foreach (var inv in supInvoices)

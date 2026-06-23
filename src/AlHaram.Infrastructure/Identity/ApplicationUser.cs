@@ -1,3 +1,4 @@
+using AlHaram.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 
 namespace AlHaram.Infrastructure.Identity;
@@ -11,4 +12,8 @@ public class ApplicationUser : IdentityUser<Guid>
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
+
+    /// <summary>When set, user is restricted to this godown (branch). Null = all branches.</summary>
+    public Guid? GodownId { get; set; }
+    public Godown? Godown { get; set; }
 }

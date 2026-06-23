@@ -5,6 +5,7 @@ import { ProductionOrderService } from '../../core/services/production-order.ser
 import { BomService } from '../../core/services/bom.service';
 import { GodownService } from '../../core/services/godown.service';
 import { ItemService } from '../../core/services/item.service';
+import { AccessService } from '../../core/services/access.service';
 import {
   BillOfMaterialsDto,
   GodownDto,
@@ -25,7 +26,9 @@ import {
         <p class="page-sub">Consume raw steel and produce finished goods with computed cost.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New order</button>
+      @if (access.canWrite('production/orders')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New order</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -49,7 +52,7 @@ import {
               <td>{{ o.status === completed ? (o.totalCost | number:'1.2-2') : '—' }}</td>
               <td style="text-align:right">
                 <button class="btn btn-ghost btn-sm" (click)="view(o)">View</button>
-                @if (o.status === draft) {
+                @if (o.status === draft && access.canWrite('production/orders')) {
                   <button class="btn btn-primary btn-sm" (click)="complete(o)">Complete</button>
                   <button class="btn btn-ghost btn-sm" (click)="cancel(o)">Cancel</button>
                 }
@@ -167,6 +170,7 @@ import {
   `],
 })
 export class ProductionOrdersComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private orderService = inject(ProductionOrderService);
   private bomService = inject(BomService);

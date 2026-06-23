@@ -30,6 +30,22 @@ public class StockController : ControllerBase
         return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
     }
 
+    [HttpPut("levels")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    public async Task<IActionResult> UpdateLevel([FromBody] UpdateStockLevelRequest request, CancellationToken ct)
+    {
+        var result = await _stock.UpdateStockLevelAsync(request, ct);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
+    }
+
+    [HttpDelete("levels/{itemId:guid}/{godownId:guid}")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    public async Task<IActionResult> DeleteLevel(Guid itemId, Guid godownId, CancellationToken ct)
+    {
+        var result = await _stock.DeleteStockLevelAsync(itemId, godownId, ct);
+        return result.Succeeded ? NoContent() : BadRequest(new { errors = result.Errors });
+    }
+
     [HttpGet("adjustments")]
     public async Task<IActionResult> GetAdjustments(CancellationToken ct)
         => Ok(await _stock.GetAdjustmentsAsync(ct));

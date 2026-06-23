@@ -1,7 +1,9 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Common.Models;
 using AlHaram.Application.Production;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,8 +12,13 @@ namespace AlHaram.Infrastructure.Services;
 public class ProductionOrderService : IProductionOrderService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public ProductionOrderService(AppDbContext db) => _db = db;
+    public ProductionOrderService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<ProductionOrderDto>> GetAllAsync(CancellationToken ct = default)
     {
@@ -20,6 +27,7 @@ public class ProductionOrderService : IProductionOrderService
             .Include(o => o.FinishedItem)
             .Include(o => o.ScrapItem)
             .Include(o => o.Lines).ThenInclude(l => l.Item)
+            .ForBranch(_branch)
             .OrderByDescending(o => o.Date)
             .ThenByDescending(o => o.CreatedAt)
             .Select(o => ToDto(o))

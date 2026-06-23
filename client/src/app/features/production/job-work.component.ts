@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { CustomerService } from '../../core/services/customer.service';
 import { JobWorkOrderService } from '../../core/services/remaining-features.service';
+import { AccessService } from '../../core/services/access.service';
 import {
   CustomerDto, JobWorkOrderDto, JobWorkOrderStatus, JobWorkOrderStatusLabels,
 } from '../../core/models/domain.models';
@@ -19,7 +20,9 @@ import {
         <p class="page-sub">Track outsourced fabrication work for customers.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New order</button>
+      @if (access.canWrite('production/job-work')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New order</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -39,8 +42,12 @@ import {
               <td>{{ statusLabel(o.status) }}</td>
               <td>{{ money(o.laborCharge) }}</td>
               <td style="text-align:right">
-                <button class="btn btn-ghost btn-sm" (click)="edit(o)">Edit</button>
-                <button class="btn btn-danger btn-sm" (click)="remove(o)">Delete</button>
+                @if (access.canWrite('production/job-work')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(o)">Edit</button>
+                }
+                @if (access.canDelete('production/job-work')) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(o)">Delete</button>
+                }
               </td>
             </tr>
           } @empty {
@@ -100,6 +107,7 @@ import {
   `],
 })
 export class JobWorkComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private jobWorkService = inject(JobWorkOrderService);
   private customerService = inject(CustomerService);

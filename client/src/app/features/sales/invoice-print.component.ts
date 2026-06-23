@@ -3,6 +3,8 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SalesInvoiceService } from '../../core/services/sales-invoice.service';
 import { CompanyService } from '../../core/services/company.service';
+import { CustomerService } from '../../core/services/customer.service';
+import { WhatsAppService } from '../../core/services/whatsapp.service';
 import { CompanyDto, SalesInvoiceDto } from '../../core/models/domain.models';
 
 @Component({
@@ -10,12 +12,21 @@ import { CompanyDto, SalesInvoiceDto } from '../../core/models/domain.models';
   standalone: true,
   imports: [CommonModule, RouterLink, DatePipe],
   template: `
-    <div class="screen-only no-print" style="margin-bottom:1rem; display:flex; gap:.5rem;">
+    <div class="screen-only no-print" style="margin-bottom:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
       <a class="btn btn-ghost" routerLink="/sales/invoices">← Back</a>
       <div style="flex:1"></div>
       <button class="btn btn-primary" (click)="print()">Print / Save PDF</button>
-      <button class="btn btn-ghost" (click)="shareWhatsApp()">Share WhatsApp</button>
+      <button class="btn btn-ghost" (click)="shareWhatsApp()" [disabled]="whatsAppSending()">
+        {{ whatsAppSending() ? 'Opening…' : 'Share on WhatsApp' }}
+      </button>
     </div>
+
+    @if (whatsAppMessage()) {
+      <div class="alert no-print alert-error" style="margin-bottom:1rem">{{ whatsAppMessage() }}</div>
+    }
+    @if (whatsAppHint()) {
+      <div class="alert no-print" style="margin-bottom:1rem;background:#f0f9ff;color:#026aa2;font-size:.85rem">{{ whatsAppHint() }}</div>
+    }
 
     @if (invoice(); as i) {
       <div class="invoice-paper">
@@ -138,17 +149,32 @@ export class InvoicePrintComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private invoiceService = inject(SalesInvoiceService);
   private companyService = inject(CompanyService);
+  private customerService = inject(CustomerService);
+  private whatsAppService = inject(WhatsAppService);
 
   invoice = signal<SalesInvoiceDto | null>(null);
   company = signal<CompanyDto | null>(null);
+  customerPhone = signal<string | null>(null);
   loaded = signal(false);
+  whatsAppSending = signal(false);
+  whatsAppMessage = signal<string | null>(null);
+  whatsAppHint = signal<string | null>(
+    'Free WhatsApp: PDF downloads automatically, chat opens — attach the PDF and tap Send.',
+  );
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) { this.loaded.set(true); return; }
 
     this.invoiceService.getById(id).subscribe({
-      next: (i) => { this.invoice.set(i); this.loaded.set(true); },
+      next: (i) => {
+        this.invoice.set(i);
+        this.loaded.set(true);
+        this.customerService.getAll().subscribe((customers) => {
+          const c = customers.find((x) => x.id === i.customerId);
+          this.customerPhone.set(c?.phone ?? null);
+        });
+      },
       error: () => this.loaded.set(true),
     });
     this.companyService.get().subscribe((c) => this.company.set(c));
@@ -161,13 +187,22 @@ export class InvoicePrintComponent implements OnInit {
 
   print(): void { window.print(); }
 
-  shareWhatsApp(): void {
+  async shareWhatsApp(): Promise<void> {
     const i = this.invoice();
     if (!i) return;
-    const company = this.company()?.name || 'Al-Haram Steel';
-    const lines = i.lines.map(l => `${l.itemName} x ${l.quantity} ${l.unitCode} = ${this.money(l.lineTotal)}`).join('\n');
-    const text = `${company}\nInvoice: ${i.number}\nDate: ${new Date(i.date).toLocaleDateString()}\nCustomer: ${i.customerName}\n\n${lines}\n\nTotal: ${this.money(i.total)}\nBalance: ${this.money(i.balance)}`;
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    this.whatsAppSending.set(true);
+    this.whatsAppMessage.set(null);
+    try {
+      const err = await this.whatsAppService.shareInvoicePdf(
+        i,
+        this.customerPhone(),
+        this.company()?.name ?? 'Al-Haram Steel',
+      );
+      if (err) this.whatsAppMessage.set(err);
+    } catch {
+      this.whatsAppMessage.set('Could not download invoice PDF.');
+    } finally {
+      this.whatsAppSending.set(false);
+    }
   }
 }

@@ -12,11 +12,15 @@ public record UserDto(
     string UserName,
     string FullName,
     string? Email,
-    IList<string> Roles);
+    IList<string> Roles,
+    Guid? GodownId,
+    string? GodownName,
+    bool CanAccessAllBranches);
 
 public record CreateUserRequest(
     string UserName,
     string FullName,
     string? Email,
     string Password,
-    IList<string> Roles);
+    IList<string> Roles,
+    Guid? GodownId);

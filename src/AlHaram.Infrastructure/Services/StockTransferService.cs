@@ -3,6 +3,7 @@ using AlHaram.Application.Common.Models;
 using AlHaram.Application.Stock;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Common;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,13 @@ public class StockTransferService : IStockTransferService
 {
     private readonly AppDbContext _db;
     private readonly IAuditLogService _audit;
+    private readonly IBranchScope _branch;
 
-    public StockTransferService(AppDbContext db, IAuditLogService audit)
+    public StockTransferService(AppDbContext db, IAuditLogService audit, IBranchScope branch)
     {
         _db = db;
         _audit = audit;
+        _branch = branch;
     }
 
     public async Task<IReadOnlyList<StockTransferDto>> GetAllAsync(CancellationToken ct = default)
@@ -26,6 +29,7 @@ public class StockTransferService : IStockTransferService
             .Include(t => t.FromGodown)
             .Include(t => t.ToGodown)
             .Include(t => t.Lines).ThenInclude(l => l.Item)
+            .ForBranch(_branch)
             .OrderByDescending(t => t.Date)
             .ThenByDescending(t => t.CreatedAt)
             .ToListAsync(ct);

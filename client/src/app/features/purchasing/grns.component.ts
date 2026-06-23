@@ -6,6 +6,7 @@ import { SupplierService } from '../../core/services/supplier.service';
 import { GodownService } from '../../core/services/godown.service';
 import { ItemService } from '../../core/services/item.service';
 import { GrnService, PurchaseOrderService } from '../../core/services/purchasing-extra.service';
+import { AccessService } from '../../core/services/access.service';
 import {
   GodownDto, GrnDto, ItemDto, PurchaseOrderDto, SupplierDto,
 } from '../../core/models/domain.models';
@@ -21,7 +22,9 @@ import {
         <p class="page-sub">Record incoming stock from suppliers, optionally linked to a PO.</p>
       </div>
       <div class="spacer"></div>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New GRN</button>
+      @if (access.canWrite('purchasing/grns')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New GRN</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -133,6 +136,7 @@ import {
   `],
 })
 export class GrnsComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private grnService = inject(GrnService);
   private poService = inject(PurchaseOrderService);

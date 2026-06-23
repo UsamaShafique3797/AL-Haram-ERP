@@ -1,4 +1,6 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Finance;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,8 +9,13 @@ namespace AlHaram.Infrastructure.Services;
 public class ReportService : IReportService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public ReportService(AppDbContext db) => _db = db;
+    public ReportService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<SalesReportDto> GetSalesReportAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
@@ -18,6 +25,7 @@ public class ReportService : IReportService
         var invoices = await _db.SalesInvoices
             .Include(i => i.Customer)
             .Where(i => i.Date >= fromDate && i.Date <= toDate)
+            .ForBranch(_branch)
             .OrderBy(i => i.Date)
             .ThenBy(i => i.Number)
             .ToListAsync(ct);
@@ -59,6 +67,7 @@ public class ReportService : IReportService
         var fullInvoices = await _db.PurchaseInvoices
             .Include(i => i.Supplier)
             .Where(i => i.Date >= fromDate && i.Date <= toDate)
+            .ForBranch(_branch)
             .OrderBy(i => i.Date)
             .ThenBy(i => i.Number)
             .ToListAsync(ct);
@@ -105,7 +114,8 @@ public class ReportService : IReportService
             .ThenBy(i => i.Name)
             .ToListAsync(ct);
 
-        var stockByItem = await _db.StockItems
+        var stockQuery = _db.StockItems.AsQueryable().ForBranch(_branch);
+        var stockByItem = await stockQuery
             .GroupBy(s => s.ItemId)
             .Select(g => new
             {
@@ -138,6 +148,15 @@ public class ReportService : IReportService
     {
         var fromDate = from.Date;
         var toDate = to.Date.AddDays(1).AddTicks(-1);
+
+        if (_branch.EffectiveGodownId is not null)
+        {
+            return new ExpenseReportDto(
+                fromDate, to.Date,
+                0, 0m,
+                Array.Empty<ExpenseReportLineDto>(),
+                Array.Empty<ProfitLossCategoryBreakdownDto>());
+        }
 
         var expenses = await _db.Expenses
             .Include(e => e.ExpenseCategory)

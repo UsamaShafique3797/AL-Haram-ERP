@@ -7,6 +7,7 @@ import { ExpenseService } from '../../core/services/expense.service';
 import { ExpenseCategoryService } from '../../core/services/expense-category.service';
 import { PaymentAccountService } from '../../core/services/payment-account.service';
 import { FileService } from '../../core/services/file.service';
+import { AccessService } from '../../core/services/access.service';
 import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/models/domain.models';
 
 @Component({
@@ -20,8 +21,12 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
         <p class="page-sub">Record business expenses paid from cash or bank.</p>
       </div>
       <div class="spacer"></div>
-      <a class="btn btn-ghost" routerLink="/expenses/categories">Categories</a>
-      <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New expense</button>
+      @if (access.canView('expenses/categories')) {
+        <a class="btn btn-ghost" routerLink="/expenses/categories">Categories</a>
+      }
+      @if (access.canWrite('expenses')) {
+        <button class="btn btn-primary" (click)="openNew()" [disabled]="!ready()">+ New expense</button>
+      }
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
@@ -41,7 +46,9 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
               <td class="num">{{ money(e.amount) }}</td>
               <td>{{ e.notes || '—' }}</td>
               <td style="text-align:right">
-                <button class="btn btn-danger btn-sm" (click)="remove(e)">Delete</button>
+                @if (access.canDelete('expenses')) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(e)">Delete</button>
+                }
               </td>
             </tr>
           } @empty {
@@ -105,6 +112,7 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
   `],
 })
 export class ExpensesComponent implements OnInit {
+  access = inject(AccessService);
   private fb = inject(FormBuilder);
   private expenseService = inject(ExpenseService);
   private categoryService = inject(ExpenseCategoryService);

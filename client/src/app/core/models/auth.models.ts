@@ -9,6 +9,9 @@ export interface UserDto {
   fullName: string;
   email?: string | null;
   roles: string[];
+  godownId?: string | null;
+  godownName?: string | null;
+  canAccessAllBranches: boolean;
 }
 
 export interface AuthResult {
@@ -23,4 +26,5 @@ export interface CreateUserRequest {
   email?: string | null;
   password: string;
   roles: string[];
+  godownId?: string | null;
 }

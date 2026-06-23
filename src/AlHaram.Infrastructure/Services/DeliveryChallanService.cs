@@ -3,6 +3,7 @@ using AlHaram.Application.Common.Models;
 using AlHaram.Application.Sales;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Common;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,13 @@ public class DeliveryChallanService : IDeliveryChallanService
 {
     private readonly AppDbContext _db;
     private readonly IAuditLogService _audit;
+    private readonly IBranchScope _branch;
 
-    public DeliveryChallanService(AppDbContext db, IAuditLogService audit)
+    public DeliveryChallanService(AppDbContext db, IAuditLogService audit, IBranchScope branch)
     {
         _db = db;
         _audit = audit;
+        _branch = branch;
     }
 
     public async Task<IReadOnlyList<DeliveryChallanDto>> GetAllAsync(Guid? customerId = null, CancellationToken ct = default)
@@ -28,7 +31,8 @@ public class DeliveryChallanService : IDeliveryChallanService
             .Include(c => c.SalesInvoice)
             .Include(c => c.Lines).ThenInclude(l => l.Item)
             .Include(c => c.Lines).ThenInclude(l => l.Unit)
-            .AsQueryable();
+            .AsQueryable()
+            .ForBranch(_branch);
 
         if (customerId is not null)
             query = query.Where(c => c.CustomerId == customerId);

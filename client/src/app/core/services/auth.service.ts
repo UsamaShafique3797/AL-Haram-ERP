@@ -45,6 +45,12 @@ export class AuthService {
 
   private readUser(): UserDto | null {
     const raw = localStorage.getItem(USER_KEY);
-    return raw ? (JSON.parse(raw) as UserDto) : null;
+    if (!raw) return null;
+    const u = JSON.parse(raw) as Partial<UserDto> & Pick<UserDto, 'id' | 'userName' | 'fullName' | 'roles'>;
+    return {
+      ...u,
+      roles: u.roles ?? [],
+      canAccessAllBranches: u.canAccessAllBranches ?? !u.godownId,
+    } as UserDto;
   }
 }

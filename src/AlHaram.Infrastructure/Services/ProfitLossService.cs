@@ -1,4 +1,6 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Finance;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,33 +9,46 @@ namespace AlHaram.Infrastructure.Services;
 public class ProfitLossService : IProfitLossService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public ProfitLossService(AppDbContext db) => _db = db;
+    public ProfitLossService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<ProfitLossDto> GetAsync(DateTime from, DateTime to, bool includeBreakdown = true, CancellationToken ct = default)
     {
         var fromDate = from.Date;
         var toDate = to.Date.AddDays(1).AddTicks(-1);
+        var branchId = _branch.EffectiveGodownId;
 
-        var revenue = await _db.SalesInvoices
+        var salesInvoices = _db.SalesInvoices
             .Where(i => i.Date >= fromDate && i.Date <= toDate)
-            .SumAsync(i => (decimal?)i.Total, ct) ?? 0m;
+            .ForBranch(_branch);
 
-        var salesReturns = await _db.SalesReturns
+        var revenue = await salesInvoices.SumAsync(i => (decimal?)i.Total, ct) ?? 0m;
+
+        var salesReturnsQuery = _db.SalesReturns
             .Where(r => r.Date >= fromDate && r.Date <= toDate)
-            .SumAsync(r => (decimal?)r.Total, ct) ?? 0m;
+            .ForBranch(_branch);
+        var salesReturns = await salesReturnsQuery.SumAsync(r => (decimal?)r.Total, ct) ?? 0m;
 
-        var cogs = await _db.SalesInvoices
-            .Where(i => i.Date >= fromDate && i.Date <= toDate)
-            .SumAsync(i => (decimal?)i.CostOfGoodsSold, ct) ?? 0m;
+        var cogs = await salesInvoices.SumAsync(i => (decimal?)i.CostOfGoodsSold, ct) ?? 0m;
 
-        var returnCogs = await _db.SalesReturnLines
-            .Where(l => l.SalesReturn!.Date >= fromDate && l.SalesReturn.Date <= toDate)
-            .SumAsync(l => (decimal?)l.LineCost, ct) ?? 0m;
+        var returnCogsQuery = _db.SalesReturnLines
+            .Where(l => l.SalesReturn!.Date >= fromDate && l.SalesReturn.Date <= toDate);
+        if (branchId is Guid g)
+            returnCogsQuery = returnCogsQuery.Where(l => l.SalesReturn!.GodownId == g);
+        var returnCogs = await returnCogsQuery.SumAsync(l => (decimal?)l.LineCost, ct) ?? 0m;
 
-        var expenses = await _db.Expenses
-            .Where(e => e.Date >= fromDate && e.Date <= toDate)
-            .SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
+        decimal expenses = 0m;
+        if (branchId is null)
+        {
+            expenses = await _db.Expenses
+                .Where(e => e.Date >= fromDate && e.Date <= toDate)
+                .SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
+        }
 
         var netRevenue = revenue - salesReturns;
         var netCogs = cogs - returnCogs;
@@ -45,21 +60,28 @@ public class ProfitLossService : IProfitLossService
 
         if (includeBreakdown)
         {
-            var expenseGroups = await _db.Expenses
-                .Where(e => e.Date >= fromDate && e.Date <= toDate)
-                .GroupBy(e => e.ExpenseCategory!.Name)
-                .Select(g => new { Name = g.Key, Amount = g.Sum(x => x.Amount) })
-                .OrderByDescending(x => x.Amount)
-                .ToListAsync(ct);
+            if (branchId is null)
+            {
+                var expenseGroups = await _db.Expenses
+                    .Where(e => e.Date >= fromDate && e.Date <= toDate)
+                    .GroupBy(e => e.ExpenseCategory!.Name)
+                    .Select(g => new { Name = g.Key, Amount = g.Sum(x => x.Amount) })
+                    .OrderByDescending(x => x.Amount)
+                    .ToListAsync(ct);
 
-            expenseByCategory = expenseGroups
-                .Select(x => new ProfitLossCategoryBreakdownDto(x.Name, x.Amount))
-                .ToList();
+                expenseByCategory = expenseGroups
+                    .Select(x => new ProfitLossCategoryBreakdownDto(x.Name, x.Amount))
+                    .ToList();
+            }
 
-            var soldLines = await _db.SalesInvoiceLines
+            var soldLinesQuery = _db.SalesInvoiceLines
                 .Include(l => l.Item)
                 .Include(l => l.SalesInvoice)
-                .Where(l => l.SalesInvoice!.Date >= fromDate && l.SalesInvoice.Date <= toDate)
+                .Where(l => l.SalesInvoice!.Date >= fromDate && l.SalesInvoice.Date <= toDate);
+            if (branchId is Guid bg)
+                soldLinesQuery = soldLinesQuery.Where(l => l.SalesInvoice!.GodownId == bg);
+
+            var soldLines = await soldLinesQuery
                 .GroupBy(l => new { l.ItemId, l.Item!.Code, l.Item.Name })
                 .Select(g => new
                 {
@@ -71,10 +93,14 @@ public class ProfitLossService : IProfitLossService
                 })
                 .ToListAsync(ct);
 
-            var returnLines = await _db.SalesReturnLines
+            var returnLinesQuery = _db.SalesReturnLines
                 .Include(l => l.Item)
                 .Include(l => l.SalesReturn)
-                .Where(l => l.SalesReturn!.Date >= fromDate && l.SalesReturn.Date <= toDate)
+                .Where(l => l.SalesReturn!.Date >= fromDate && l.SalesReturn.Date <= toDate);
+            if (branchId is Guid rg)
+                returnLinesQuery = returnLinesQuery.Where(l => l.SalesReturn!.GodownId == rg);
+
+            var returnLines = await returnLinesQuery
                 .GroupBy(l => l.ItemId)
                 .Select(g => new { ItemId = g.Key, Revenue = g.Sum(x => x.LineTotal), Cost = g.Sum(x => x.LineCost) })
                 .ToDictionaryAsync(x => x.ItemId, ct);
