@@ -4,6 +4,7 @@ import { APP_NAV } from '../core/auth/app-roles';
 import { canAccessRoute } from '../core/auth/role-access';
 import { AuthService } from '../core/services/auth.service';
 import { BranchContextService } from '../core/services/branch-context.service';
+import { CompanyContextService } from '../core/services/company-context.service';
 import { GodownService } from '../core/services/godown.service';
 import { GodownDto } from '../core/models/domain.models';
 
@@ -26,10 +27,12 @@ interface NavGroup {
     <div class="layout">
       <aside class="sidebar">
         <div class="brand">
-          <img class="logo" src="/images/logo.png" alt="Al Haram Steel" />
+          <img class="logo" [src]="companyCtx.logoSrc()" [alt]="companyCtx.name()" />
           <div class="brand-text">
-            <strong>Al-Haram ERP</strong>
-            <span>Steel &amp; Construction</span>
+            <strong>{{ companyCtx.sidebarTitle() }}</strong>
+            @if (companyCtx.tagline()) {
+              <span class="brand-tagline">{{ companyCtx.tagline() }}</span>
+            }
           </div>
         </div>
 
@@ -86,9 +89,9 @@ interface NavGroup {
     .brand { display: flex; align-items: center; gap: .7rem; padding: .3rem .4rem 1.2rem; }
     .logo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #fff;
       box-shadow: 0 2px 6px rgba(0,0,0,.25); }
-    .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
     .brand-text strong { color: #fff; font-size: .95rem; }
-    .brand-text span { font-size: .72rem; color: var(--muted); }
+    .brand-tagline { font-size: .75rem; color: #cbd2d9; margin-top: .15rem; line-height: 1.3; }
     nav { display: flex; flex-direction: column; gap: .15rem; margin-top: .5rem; overflow-y: auto; }
     .nav-group-title { font-size: .65rem; text-transform: uppercase; letter-spacing: .08em;
       color: var(--muted); padding: .9rem .75rem .35rem; }
@@ -120,6 +123,7 @@ interface NavGroup {
 })
 export class ShellComponent implements OnInit {
   auth = inject(AuthService);
+  companyCtx = inject(CompanyContextService);
   branchCtx = inject(BranchContextService);
   private godownService = inject(GodownService);
   private router = inject(Router);
@@ -139,6 +143,7 @@ export class ShellComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.companyCtx.refresh();
     if (this.auth.user()?.canAccessAllBranches) {
       this.godownService.getAll().subscribe((list) => this.godowns.set(list));
     }

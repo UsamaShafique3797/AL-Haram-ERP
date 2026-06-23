@@ -56,11 +56,41 @@ public class QuotationService : IQuotationService
         if (!await _db.Customers.AnyAsync(c => c.Id == request.CustomerId, ct))
             return Result<QuotationDto>.Failure("Customer not found.");
 
+        var build = await BuildLinesAsync(request, ct);
+        if (!build.Succeeded) return Result<QuotationDto>.Failure(build.Errors);
+
+        var taxAmount = (build.Subtotal - request.Discount) * request.TaxRate / 100m;
+        var total = build.Subtotal - request.Discount + taxAmount;
+
+        var quote = new Quotation
+        {
+            Number = await NextNumberAsync(ct),
+            Date = request.Date,
+            ValidUntil = request.ValidUntil,
+            CustomerId = request.CustomerId,
+            Status = QuotationStatus.Sent,
+            Subtotal = build.Subtotal,
+            Discount = request.Discount,
+            TaxRate = request.TaxRate,
+            TaxAmount = taxAmount,
+            Total = total,
+            Notes = request.Notes,
+            Lines = build.Lines
+        };
+        _db.Quotations.Add(quote);
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("Created", "Quotation", quote.Id, quote.Number, null, null, ct);
+        return Result<QuotationDto>.Success((await GetByIdAsync(quote.Id, ct))!);
+    }
+
+    private async Task<(bool Succeeded, string[] Errors, decimal Subtotal, List<QuotationLine> Lines)> BuildLinesAsync(
+        SaveQuotationRequest request, CancellationToken ct)
+    {
         var errors = new List<string>();
         decimal subtotal = 0m;
         var lines = new List<QuotationLine>();
 
-        foreach (var line in request.Lines)
+        foreach (var line in request.Lines!)
         {
             if (line.Quantity <= 0) { errors.Add("Quantity must be greater than zero."); continue; }
             if (line.Rate < 0) { errors.Add("Rate cannot be negative."); continue; }
@@ -87,30 +117,51 @@ public class QuotationService : IQuotationService
             });
         }
 
-        if (errors.Count > 0) return Result<QuotationDto>.Failure(errors.ToArray());
+        if (errors.Count > 0) return (false, errors.ToArray(), 0m, lines);
+        if (lines.Count == 0) return (false, new[] { "Add at least one line." }, 0m, lines);
+        return (true, Array.Empty<string>(), subtotal, lines);
+    }
 
-        var taxAmount = (subtotal - request.Discount) * request.TaxRate / 100m;
-        var total = subtotal - request.Discount + taxAmount;
+    public async Task<Result<QuotationDto>> UpdateAsync(Guid id, SaveQuotationRequest request, CancellationToken ct = default)
+    {
+        var quote = await _db.Quotations.Include(q => q.Lines).FirstOrDefaultAsync(q => q.Id == id, ct);
+        if (quote is null) return Result<QuotationDto>.Failure("Quotation not found.");
+        if (quote.Status == QuotationStatus.Converted)
+            return Result<QuotationDto>.Failure("Converted quotations cannot be edited.");
+        if (!await _db.Customers.AnyAsync(c => c.Id == request.CustomerId, ct))
+            return Result<QuotationDto>.Failure("Customer not found.");
 
-        var quote = new Quotation
-        {
-            Number = await NextNumberAsync(ct),
-            Date = request.Date,
-            ValidUntil = request.ValidUntil,
-            CustomerId = request.CustomerId,
-            Status = QuotationStatus.Sent,
-            Subtotal = subtotal,
-            Discount = request.Discount,
-            TaxRate = request.TaxRate,
-            TaxAmount = taxAmount,
-            Total = total,
-            Notes = request.Notes,
-            Lines = lines
-        };
-        _db.Quotations.Add(quote);
+        var build = await BuildLinesAsync(request, ct);
+        if (!build.Succeeded) return Result<QuotationDto>.Failure(build.Errors);
+
+        quote.Date = request.Date;
+        quote.ValidUntil = request.ValidUntil;
+        quote.CustomerId = request.CustomerId;
+        quote.Subtotal = build.Subtotal;
+        quote.Discount = request.Discount;
+        quote.TaxRate = request.TaxRate;
+        quote.TaxAmount = (build.Subtotal - request.Discount) * request.TaxRate / 100m;
+        quote.Total = build.Subtotal - request.Discount + quote.TaxAmount;
+        quote.Notes = request.Notes;
+
+        _db.QuotationLines.RemoveRange(quote.Lines);
+        quote.Lines = build.Lines;
+
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Created", "Quotation", quote.Id, quote.Number, null, null, ct);
-        return Result<QuotationDto>.Success((await GetByIdAsync(quote.Id, ct))!);
+        await _audit.LogAsync("Updated", "Quotation", quote.Id, quote.Number, null, null, ct);
+        return Result<QuotationDto>.Success((await GetByIdAsync(id, ct))!);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var quote = await _db.Quotations.Include(q => q.Lines).FirstOrDefaultAsync(q => q.Id == id, ct);
+        if (quote is null || quote.Status == QuotationStatus.Converted) return false;
+
+        _db.QuotationLines.RemoveRange(quote.Lines);
+        _db.Quotations.Remove(quote);
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("Deleted", "Quotation", id, quote.Number, null, null, ct);
+        return true;
     }
 
     public async Task<Result<SalesInvoiceDto>> ConvertToInvoiceAsync(Guid id, SaveSalesInvoiceRequest request, CancellationToken ct = default)

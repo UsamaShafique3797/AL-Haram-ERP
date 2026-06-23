@@ -49,11 +49,17 @@ import {
               <td>{{ o.godownName }}</td>
               <td>{{ statusLabel(o.status) }}</td>
               <td>{{ money(o.total) }}</td>
-              <td style="text-align:right">
+              <td style="text-align:right; white-space:nowrap">
                 @if (o.status === draftStatus) {
-                  <button class="btn btn-ghost btn-sm" (click)="markSent(o)" [disabled]="actionId() === o.id">
-                    {{ actionId() === o.id ? 'Sending…' : 'Mark sent' }}
-                  </button>
+                  @if (access.canWrite('purchasing/orders')) {
+                    <button class="btn btn-ghost btn-sm" (click)="edit(o)">Edit</button>
+                    <button class="btn btn-ghost btn-sm" (click)="markSent(o)" [disabled]="actionId() === o.id">
+                      {{ actionId() === o.id ? 'Sending…' : 'Mark sent' }}
+                    </button>
+                  }
+                  @if (access.canDelete('purchasing/orders')) {
+                    <button class="btn btn-danger btn-sm" (click)="remove(o)">Delete</button>
+                  }
                 }
               </td>
             </tr>
@@ -68,7 +74,7 @@ import {
       <div class="modal-backdrop" (click)="close()">
         <div class="modal card" (click)="$event.stopPropagation()">
           <div class="card-pad">
-            <h3>New purchase order</h3>
+            <h3>{{ editingId ? 'Edit purchase order' : 'New purchase order' }}</h3>
             @if (formError()) { <div class="alert alert-error">{{ formError() }}</div> }
 
             <form [formGroup]="form" (ngSubmit)="save()">
@@ -136,7 +142,7 @@ import {
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
                 <button class="btn btn-primary" [disabled]="form.invalid || lines.length === 0 || loading()">
-                  {{ loading() ? 'Saving…' : 'Save PO' }}
+                  {{ loading() ? 'Saving…' : (editingId ? 'Save changes' : 'Save PO') }}
                 </button>
               </div>
             </form>
@@ -174,6 +180,7 @@ export class PurchaseOrdersComponent implements OnInit {
   error = signal<string | null>(null);
   formError = signal<string | null>(null);
   private formTick = signal(0);
+  editingId: string | null = null;
 
   readonly draftStatus = PurchaseOrderStatus.Draft;
 
@@ -279,6 +286,7 @@ export class PurchaseOrdersComponent implements OnInit {
   }
 
   openNew(): void {
+    this.editingId = null;
     this.formError.set(null);
     const defaultGodown = this.godowns().find((g) => g.isDefault) ?? this.godowns()[0];
     this.lines.clear();
@@ -295,13 +303,37 @@ export class PurchaseOrdersComponent implements OnInit {
     this.showForm.set(true);
   }
 
+  edit(o: PurchaseOrderDto): void {
+    this.editingId = o.id;
+    this.formError.set(null);
+    this.lines.clear();
+    this.form.reset({
+      supplierId: o.supplierId,
+      godownId: o.godownId,
+      date: o.date.substring(0, 10),
+      expectedDate: o.expectedDate ? o.expectedDate.substring(0, 10) : '',
+      discount: o.discount,
+      taxRate: o.taxRate,
+      notes: o.notes ?? '',
+    });
+    for (const l of o.lines) {
+      this.lines.push(this.fb.nonNullable.group({
+        itemId: [l.itemId, Validators.required],
+        unitId: [l.unitId, Validators.required],
+        quantity: [l.quantity, [Validators.required, Validators.min(0.0001)]],
+        rate: [l.rate, [Validators.required, Validators.min(0)]],
+        discount: [l.discount, [Validators.min(0)]],
+      }));
+    }
+    this.showForm.set(true);
+  }
+
   save(): void {
     if (this.form.invalid || this.lines.length === 0) return;
     this.loading.set(true);
     this.formError.set(null);
     const v = this.form.getRawValue();
-
-    this.poService.create({
+    const payload = {
       date: v.date,
       expectedDate: v.expectedDate || null,
       supplierId: v.supplierId,
@@ -316,7 +348,11 @@ export class PurchaseOrdersComponent implements OnInit {
         rate: Number(l.rate),
         discount: Number(l.discount || 0),
       })),
-    }).subscribe({
+    };
+    const req = this.editingId
+      ? this.poService.update(this.editingId, payload)
+      : this.poService.create(payload);
+    req.subscribe({
       next: () => {
         this.loading.set(false);
         this.close();
@@ -329,5 +365,13 @@ export class PurchaseOrdersComponent implements OnInit {
     });
   }
 
-  close(): void { this.showForm.set(false); }
+  remove(o: PurchaseOrderDto): void {
+    if (!confirm(`Delete purchase order ${o.number}?`)) return;
+    this.poService.delete(o.id).subscribe({
+      next: () => this.load(),
+      error: () => this.error.set('Could not delete purchase order.'),
+    });
+  }
+
+  close(): void { this.showForm.set(false); this.editingId = null; }
 }

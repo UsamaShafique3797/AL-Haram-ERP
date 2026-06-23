@@ -46,6 +46,14 @@ export class QuotationService {
     return this.http.post<QuotationDto>(this.api, req);
   }
 
+  update(id: string, req: SaveQuotationRequest): Observable<QuotationDto> {
+    return this.http.put<QuotationDto>(`${this.api}/${id}`, req);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/${id}`);
+  }
+
   convertToInvoice(id: string, req: SaveSalesInvoiceRequest): Observable<SalesInvoiceDto> {
     return this.http.post<SalesInvoiceDto>(`${this.api}/${id}/convert`, req);
   }

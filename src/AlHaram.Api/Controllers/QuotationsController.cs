@@ -33,6 +33,22 @@ public class QuotationsController : ControllerBase
         return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] SaveQuotationRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateAsync(id, request, ct);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var ok = await _service.DeleteAsync(id, ct);
+        return ok ? NoContent() : NotFound();
+    }
+
     [HttpPost("{id:guid}/convert")]
     [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> ConvertToInvoice(Guid id, [FromBody] SaveSalesInvoiceRequest request, CancellationToken ct)

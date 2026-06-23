@@ -50,9 +50,18 @@ public static class DbSeeder
             db.Companies.Add(new Company
             {
                 Name = "Al-Haram Steel",
+                Tagline = "Steel & Construction",
                 Currency = "PKR",
                 DefaultTaxRate = 0m
             });
+        }
+        else
+        {
+            var company = await db.Companies.FirstAsync();
+            if (string.IsNullOrWhiteSpace(company.Tagline))
+            {
+                company.Tagline = "Steel & Construction";
+            }
         }
 
         if (!await db.Godowns.AnyAsync())

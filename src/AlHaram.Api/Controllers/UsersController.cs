@@ -35,6 +35,24 @@ public class UsersController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Data!.Id }, result.Data);
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUserRequest request, CancellationToken ct)
+    {
+        var result = await _identity.UpdateUserAsync(id, request, ct);
+        if (!result.Succeeded)
+            return BadRequest(new { errors = result.Errors });
+        return Ok(result.Data);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
+    {
+        var result = await _identity.DeactivateUserAsync(id, ct);
+        if (!result.Succeeded)
+            return BadRequest(new { errors = result.Errors });
+        return NoContent();
+    }
+
     [HttpGet("roles")]
     public IActionResult GetRoles() => Ok(AppRoles.All);
 }

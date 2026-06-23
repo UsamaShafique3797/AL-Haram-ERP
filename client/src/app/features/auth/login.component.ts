@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { CompanyContextService } from '../../core/services/company-context.service';
 
 @Component({
   selector: 'app-login',
@@ -11,10 +12,10 @@ import { AuthService } from '../../core/services/auth.service';
     <div class="login-wrap">
       <div class="login-card card">
         <div class="brand">
-          <img class="logo" src="/images/logo.png" alt="Al Haram Steel" />
+          <img class="logo" [src]="companyCtx.logoSrc()" [alt]="companyCtx.name()" />
           <div>
-            <h2>Al-Haram ERP</h2>
-            <div class="muted">Steel &amp; Construction Management</div>
+            <h2>{{ companyCtx.name() }}</h2>
+            <div class="muted">{{ companyCtx.tagline() }}</div>
           </div>
         </div>
 
@@ -62,6 +63,7 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
+  companyCtx = inject(CompanyContextService);
 
   loading = signal(false);
   error = signal<string | null>(null);
@@ -79,6 +81,7 @@ export class LoginComponent {
     this.auth.login(this.form.getRawValue()).subscribe({
       next: () => {
         this.loading.set(false);
+        this.companyCtx.refresh();
         this.router.navigate(['/dashboard']);
       },
       error: (err) => {

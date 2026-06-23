@@ -2,10 +2,10 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { SalesInvoiceService } from '../../core/services/sales-invoice.service';
-import { CompanyService } from '../../core/services/company.service';
+import { CompanyContextService } from '../../core/services/company-context.service';
 import { CustomerService } from '../../core/services/customer.service';
 import { WhatsAppService } from '../../core/services/whatsapp.service';
-import { CompanyDto, SalesInvoiceDto } from '../../core/models/domain.models';
+import { SalesInvoiceDto } from '../../core/models/domain.models';
 
 @Component({
   selector: 'app-invoice-print',
@@ -32,12 +32,15 @@ import { CompanyDto, SalesInvoiceDto } from '../../core/models/domain.models';
       <div class="invoice-paper">
         <header class="hdr">
           <div class="brand-row">
-            <img src="/images/logo.png" alt="Al Haram Steel" class="logo" />
+            <img [src]="companyCtx.logoSrc()" [alt]="companyCtx.name()" class="logo" />
             <div>
-              <h1>{{ company()?.name || 'Al-Haram Steel' }}</h1>
-              @if (company()?.address) { <div class="muted">{{ company()?.address }}</div> }
-              @if (company()?.phone) { <div class="muted">Phone: {{ company()?.phone }}</div> }
-              @if (company()?.taxNumber) { <div class="muted">NTN: {{ company()?.taxNumber }}</div> }
+              <h1>{{ companyCtx.name() }}</h1>
+              @if (companyCtx.tagline()) { <div class="tagline">{{ companyCtx.tagline() }}</div> }
+              @if (companyCtx.company()?.legalName) { <div class="muted">{{ companyCtx.company()?.legalName }}</div> }
+              @if (companyCtx.company()?.address) { <div class="muted">{{ companyCtx.company()?.address }}</div> }
+              @if (companyCtx.company()?.phone) { <div class="muted">Phone: {{ companyCtx.company()?.phone }}</div> }
+              @if (companyCtx.company()?.email) { <div class="muted">{{ companyCtx.company()?.email }}</div> }
+              @if (companyCtx.company()?.taxNumber) { <div class="muted">NTN: {{ companyCtx.company()?.taxNumber }}</div> }
             </div>
           </div>
           <div class="meta">
@@ -99,7 +102,7 @@ import { CompanyDto, SalesInvoiceDto } from '../../core/models/domain.models';
 
         <footer class="ftr">
           <div>Thank you for your business.</div>
-          <div class="muted">{{ company()?.name }} · Currency: {{ company()?.currency || 'PKR' }}</div>
+          <div class="muted">{{ companyCtx.name() }} · Currency: {{ companyCtx.company()?.currency || 'PKR' }}</div>
         </footer>
       </div>
     } @else if (loaded()) {
@@ -114,7 +117,8 @@ import { CompanyDto, SalesInvoiceDto } from '../../core/models/domain.models';
     .hdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem;
       padding-bottom: 1rem; border-bottom: 2px solid #1f2933; }
     .brand-row { display: flex; gap: 1rem; align-items: center; }
-    .logo { width: 64px; height: 64px; border-radius: 50%; }
+    .logo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: #fff; }
+    .tagline { color: #495057; font-size: .85rem; margin-bottom: .15rem; }
     .hdr h1 { font-size: 1.4rem; margin: 0; color: #c0392b; }
     .hdr h2 { font-size: 1.1rem; margin: 0 0 .4rem; text-transform: uppercase; letter-spacing: .08em; }
     .meta { text-align: right; }
@@ -148,12 +152,11 @@ import { CompanyDto, SalesInvoiceDto } from '../../core/models/domain.models';
 export class InvoicePrintComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private invoiceService = inject(SalesInvoiceService);
-  private companyService = inject(CompanyService);
+  companyCtx = inject(CompanyContextService);
   private customerService = inject(CustomerService);
   private whatsAppService = inject(WhatsAppService);
 
   invoice = signal<SalesInvoiceDto | null>(null);
-  company = signal<CompanyDto | null>(null);
   customerPhone = signal<string | null>(null);
   loaded = signal(false);
   whatsAppSending = signal(false);
@@ -177,7 +180,7 @@ export class InvoicePrintComponent implements OnInit {
       },
       error: () => this.loaded.set(true),
     });
-    this.companyService.get().subscribe((c) => this.company.set(c));
+    this.companyCtx.refresh();
   }
 
   num(v: number): string { return Number(v ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 }); }
@@ -196,7 +199,7 @@ export class InvoicePrintComponent implements OnInit {
       const err = await this.whatsAppService.shareInvoicePdf(
         i,
         this.customerPhone(),
-        this.company()?.name ?? 'Al-Haram Steel',
+        this.companyCtx.name(),
       );
       if (err) this.whatsAppMessage.set(err);
     } catch {

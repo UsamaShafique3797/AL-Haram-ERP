@@ -52,13 +52,98 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<Result<PurchaseOrderDto>> CreateAsync(SavePurchaseOrderRequest request, CancellationToken ct = default)
     {
+        var build = await BuildLinesAsync(request, ct);
+        if (!build.Succeeded) return Result<PurchaseOrderDto>.Failure(build.Errors);
+
+        var taxAmount = (build.Subtotal - request.Discount) * request.TaxRate / 100m;
+        var total = build.Subtotal - request.Discount + taxAmount;
+
+        var order = new PurchaseOrder
+        {
+            Number = await NextNumberAsync(ct),
+            Date = request.Date,
+            ExpectedDate = request.ExpectedDate,
+            SupplierId = request.SupplierId,
+            GodownId = request.GodownId,
+            Status = PurchaseOrderStatus.Draft,
+            Subtotal = build.Subtotal,
+            Discount = request.Discount,
+            TaxRate = request.TaxRate,
+            TaxAmount = taxAmount,
+            Total = total,
+            Notes = request.Notes,
+            Lines = build.Lines
+        };
+        _db.PurchaseOrders.Add(order);
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("Created", "PurchaseOrder", order.Id, order.Number, null, null, ct);
+        return Result<PurchaseOrderDto>.Success((await GetByIdAsync(order.Id, ct))!);
+    }
+
+    public async Task<Result<PurchaseOrderDto>> UpdateStatusAsync(Guid id, PurchaseOrderStatus status, CancellationToken ct = default)
+    {
+        var order = await _db.PurchaseOrders.FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null) return Result<PurchaseOrderDto>.Failure("Purchase order not found.");
+        if (order.Status == PurchaseOrderStatus.Cancelled)
+            return Result<PurchaseOrderDto>.Failure("Cancelled orders cannot be updated.");
+
+        order.Status = status;
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("StatusChanged", "PurchaseOrder", order.Id, order.Number, null, status.ToString(), ct);
+        return Result<PurchaseOrderDto>.Success((await GetByIdAsync(id, ct))!);
+    }
+
+    public async Task<Result<PurchaseOrderDto>> UpdateAsync(Guid id, SavePurchaseOrderRequest request, CancellationToken ct = default)
+    {
+        var order = await _db.PurchaseOrders.Include(o => o.Lines).FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null) return Result<PurchaseOrderDto>.Failure("Purchase order not found.");
+        if (order.Status != PurchaseOrderStatus.Draft)
+            return Result<PurchaseOrderDto>.Failure("Only draft purchase orders can be edited.");
+
+        var build = await BuildLinesAsync(request, ct);
+        if (!build.Succeeded) return Result<PurchaseOrderDto>.Failure(build.Errors);
+
+        order.Date = request.Date;
+        order.ExpectedDate = request.ExpectedDate;
+        order.SupplierId = request.SupplierId;
+        order.GodownId = request.GodownId;
+        order.Subtotal = build.Subtotal;
+        order.Discount = request.Discount;
+        order.TaxRate = request.TaxRate;
+        order.TaxAmount = (build.Subtotal - request.Discount) * request.TaxRate / 100m;
+        order.Total = build.Subtotal - request.Discount + order.TaxAmount;
+        order.Notes = request.Notes;
+
+        _db.PurchaseOrderLines.RemoveRange(order.Lines);
+        order.Lines = build.Lines;
+
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("Updated", "PurchaseOrder", order.Id, order.Number, null, null, ct);
+        return Result<PurchaseOrderDto>.Success((await GetByIdAsync(id, ct))!);
+    }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var order = await _db.PurchaseOrders.Include(o => o.Lines).FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null || order.Status != PurchaseOrderStatus.Draft) return false;
+
+        _db.PurchaseOrderLines.RemoveRange(order.Lines);
+        _db.PurchaseOrders.Remove(order);
+        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("Deleted", "PurchaseOrder", id, order.Number, null, null, ct);
+        return true;
+    }
+
+    private async Task<(bool Succeeded, string[] Errors, decimal Subtotal, List<PurchaseOrderLine> Lines)> BuildLinesAsync(
+        SavePurchaseOrderRequest request, CancellationToken ct)
+    {
         if (request.Lines is null || request.Lines.Count == 0)
-            return Result<PurchaseOrderDto>.Failure("Add at least one line.");
+            return (false, new[] { "Add at least one line." }, 0m, new List<PurchaseOrderLine>());
 
         if (!await _db.Suppliers.AnyAsync(s => s.Id == request.SupplierId, ct))
-            return Result<PurchaseOrderDto>.Failure("Supplier not found.");
+            return (false, new[] { "Supplier not found." }, 0m, new List<PurchaseOrderLine>());
         if (!await _db.Godowns.AnyAsync(g => g.Id == request.GodownId, ct))
-            return Result<PurchaseOrderDto>.Failure("Godown not found.");
+            return (false, new[] { "Godown not found." }, 0m, new List<PurchaseOrderLine>());
 
         var errors = new List<string>();
         decimal subtotal = 0m;
@@ -91,44 +176,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             });
         }
 
-        if (errors.Count > 0) return Result<PurchaseOrderDto>.Failure(errors.ToArray());
-
-        var taxAmount = (subtotal - request.Discount) * request.TaxRate / 100m;
-        var total = subtotal - request.Discount + taxAmount;
-
-        var order = new PurchaseOrder
-        {
-            Number = await NextNumberAsync(ct),
-            Date = request.Date,
-            ExpectedDate = request.ExpectedDate,
-            SupplierId = request.SupplierId,
-            GodownId = request.GodownId,
-            Status = PurchaseOrderStatus.Draft,
-            Subtotal = subtotal,
-            Discount = request.Discount,
-            TaxRate = request.TaxRate,
-            TaxAmount = taxAmount,
-            Total = total,
-            Notes = request.Notes,
-            Lines = lines
-        };
-        _db.PurchaseOrders.Add(order);
-        await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Created", "PurchaseOrder", order.Id, order.Number, null, null, ct);
-        return Result<PurchaseOrderDto>.Success((await GetByIdAsync(order.Id, ct))!);
-    }
-
-    public async Task<Result<PurchaseOrderDto>> UpdateStatusAsync(Guid id, PurchaseOrderStatus status, CancellationToken ct = default)
-    {
-        var order = await _db.PurchaseOrders.FirstOrDefaultAsync(o => o.Id == id, ct);
-        if (order is null) return Result<PurchaseOrderDto>.Failure("Purchase order not found.");
-        if (order.Status == PurchaseOrderStatus.Cancelled)
-            return Result<PurchaseOrderDto>.Failure("Cancelled orders cannot be updated.");
-
-        order.Status = status;
-        await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("StatusChanged", "PurchaseOrder", order.Id, order.Number, null, status.ToString(), ct);
-        return Result<PurchaseOrderDto>.Success((await GetByIdAsync(id, ct))!);
+        if (errors.Count > 0) return (false, errors.ToArray(), 0m, lines);
+        return (true, Array.Empty<string>(), subtotal, lines);
     }
 
     private async Task<string> NextNumberAsync(CancellationToken ct)

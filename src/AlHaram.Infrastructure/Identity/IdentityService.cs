@@ -83,6 +83,56 @@ public class IdentityService : IIdentityService
         return Result<UserDto>.Success(ToDto(user, roles));
     }
 
+    public async Task<Result<UserDto>> UpdateUserAsync(Guid id, UpdateUserRequest request, CancellationToken ct = default)
+    {
+        var user = await _userManager.Users.Include(u => u.Godown).FirstOrDefaultAsync(u => u.Id == id, ct);
+        if (user is null) return Result<UserDto>.Failure("User not found.");
+
+        if (request.GodownId is Guid gid && !await _db.Godowns.AnyAsync(g => g.Id == gid, ct))
+            return Result<UserDto>.Failure("Selected branch does not exist.");
+
+        user.FullName = request.FullName;
+        user.Email = request.Email;
+        user.GodownId = request.GodownId;
+        user.IsActive = request.IsActive;
+
+        var update = await _userManager.UpdateAsync(user);
+        if (!update.Succeeded)
+            return Result<UserDto>.Failure(update.Errors.Select(e => e.Description).ToArray());
+
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var pwd = await _userManager.ResetPasswordAsync(user, token, request.Password);
+            if (!pwd.Succeeded)
+                return Result<UserDto>.Failure(pwd.Errors.Select(e => e.Description).ToArray());
+        }
+
+        var currentRoles = await _userManager.GetRolesAsync(user);
+        var toRemove = currentRoles.Except(request.Roles).ToList();
+        var toAdd = request.Roles.Where(r => _roleManager.RoleExistsAsync(r).GetAwaiter().GetResult() && !currentRoles.Contains(r)).ToList();
+        if (toRemove.Count > 0) await _userManager.RemoveFromRolesAsync(user, toRemove);
+        if (toAdd.Count > 0) await _userManager.AddToRolesAsync(user, toAdd);
+
+        user = await _userManager.Users.Include(u => u.Godown).FirstAsync(u => u.Id == id, ct);
+        var roles = await _userManager.GetRolesAsync(user);
+        return Result<UserDto>.Success(ToDto(user, roles));
+    }
+
+    public async Task<Result<bool>> DeactivateUserAsync(Guid id, CancellationToken ct = default)
+    {
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null) return Result<bool>.Failure("User not found.");
+        if (user.UserName == DbSeeder.DefaultAdminUserName)
+            return Result<bool>.Failure("The default admin user cannot be deactivated.");
+
+        user.IsActive = false;
+        var update = await _userManager.UpdateAsync(user);
+        return update.Succeeded
+            ? Result<bool>.Success(true)
+            : Result<bool>.Failure(update.Errors.Select(e => e.Description).ToArray());
+    }
+
     public async Task<IReadOnlyList<UserDto>> GetUsersAsync(CancellationToken ct = default)
     {
         var users = await _userManager.Users.Include(u => u.Godown).ToListAsync(ct);
@@ -142,5 +192,6 @@ public class IdentityService : IIdentityService
             roles,
             user.GodownId,
             user.Godown?.Name,
-            user.GodownId is null);
+            user.GodownId is null,
+            user.IsActive);
 }

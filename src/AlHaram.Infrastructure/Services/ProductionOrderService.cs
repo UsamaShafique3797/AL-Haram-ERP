@@ -103,6 +103,66 @@ public class ProductionOrderService : IProductionOrderService
         return Result<ProductionOrderDto>.Success((await GetByIdAsync(order.Id, ct))!);
     }
 
+    public async Task<Result<ProductionOrderDto>> UpdateAsync(Guid id, SaveProductionOrderRequest request, CancellationToken ct = default)
+    {
+        var order = await _db.ProductionOrders.Include(o => o.Lines).FirstOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null) return Result<ProductionOrderDto>.Failure("Production order not found.");
+        if (order.Status != ProductionOrderStatus.Draft)
+            return Result<ProductionOrderDto>.Failure("Only draft production orders can be edited.");
+
+        if (request.Quantity <= 0)
+            return Result<ProductionOrderDto>.Failure("Output quantity must be greater than zero.");
+        if (request.LaborOverhead < 0)
+            return Result<ProductionOrderDto>.Failure("Labor/overhead cannot be negative.");
+        if (request.ScrapQuantity < 0)
+            return Result<ProductionOrderDto>.Failure("Scrap quantity cannot be negative.");
+        if (!await _db.Godowns.AnyAsync(g => g.Id == request.GodownId, ct))
+            return Result<ProductionOrderDto>.Failure("Godown not found.");
+
+        var bom = await _db.BillOfMaterials
+            .Include(b => b.Components)
+            .FirstOrDefaultAsync(b => b.Id == request.BillOfMaterialsId && b.IsActive, ct);
+        if (bom is null) return Result<ProductionOrderDto>.Failure("BOM not found or inactive.");
+        if (bom.Components.Count == 0)
+            return Result<ProductionOrderDto>.Failure("BOM has no components.");
+
+        if (request.ScrapItemId is not null && !await _db.Items.AnyAsync(i => i.Id == request.ScrapItemId, ct))
+            return Result<ProductionOrderDto>.Failure("Scrap item not found.");
+
+        order.Date = request.Date;
+        order.GodownId = request.GodownId;
+        order.BillOfMaterialsId = bom.Id;
+        order.FinishedItemId = bom.FinishedItemId;
+        order.Quantity = request.Quantity;
+        order.LaborOverhead = request.LaborOverhead;
+        order.ScrapItemId = request.ScrapItemId;
+        order.ScrapQuantity = request.ScrapQuantity;
+        order.Notes = request.Notes;
+
+        _db.ProductionOrderLines.RemoveRange(order.Lines);
+        order.Lines.Clear();
+
+        foreach (var component in bom.Components)
+        {
+            order.Lines.Add(new ProductionOrderLine
+            {
+                LineType = ProductionLineType.Consume,
+                ItemId = component.RawItemId,
+                Quantity = component.QuantityPerUnit * request.Quantity
+            });
+        }
+
+        order.Lines.Add(new ProductionOrderLine
+        {
+            LineType = ProductionLineType.Produce,
+            ItemId = bom.FinishedItemId,
+            Quantity = request.Quantity
+        });
+
+        await _db.SaveChangesAsync(ct);
+        return Result<ProductionOrderDto>.Success((await GetByIdAsync(id, ct))!);
+    }
+
     public async Task<Result<ProductionOrderDto>> CompleteAsync(Guid id, CancellationToken ct = default)
     {
         var order = await _db.ProductionOrders

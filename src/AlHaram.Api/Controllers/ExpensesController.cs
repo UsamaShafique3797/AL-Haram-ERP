@@ -34,6 +34,14 @@ public class ExpensesController : ControllerBase
         return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Accountant}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] SaveExpenseRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateAsync(id, request, ct);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

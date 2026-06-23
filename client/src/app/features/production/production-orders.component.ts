@@ -53,7 +53,10 @@ import {
               <td style="text-align:right">
                 <button class="btn btn-ghost btn-sm" (click)="view(o)">View</button>
                 @if (o.status === draft && access.canWrite('production/orders')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(o)">Edit</button>
                   <button class="btn btn-primary btn-sm" (click)="complete(o)">Complete</button>
+                }
+                @if (o.status === draft && access.canDelete('production/orders')) {
                   <button class="btn btn-ghost btn-sm" (click)="cancel(o)">Cancel</button>
                 }
               </td>
@@ -69,7 +72,7 @@ import {
       <div class="modal-backdrop" (click)="close()">
         <div class="modal card" (click)="$event.stopPropagation()">
           <div class="card-pad">
-            <h3>New production order</h3>
+            <h3>{{ editingId ? 'Edit production order' : 'New production order' }}</h3>
             @if (formError()) { <div class="alert alert-error">{{ formError() }}</div> }
             <form [formGroup]="form" (ngSubmit)="save()">
               <div class="row">
@@ -109,7 +112,7 @@ import {
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
                 <button class="btn btn-primary" [disabled]="form.invalid || loading()">
-                  {{ loading() ? 'Saving…' : 'Create draft' }}
+                  {{ loading() ? 'Saving…' : (editingId ? 'Save changes' : 'Create draft') }}
                 </button>
               </div>
             </form>
@@ -188,6 +191,7 @@ export class ProductionOrdersComponent implements OnInit {
   error = signal<string | null>(null);
   formError = signal<string | null>(null);
   selected = signal<ProductionOrderDto | null>(null);
+  editingId: string | null = null;
 
   draft = ProductionOrderStatus.Draft;
   completed = ProductionOrderStatus.Completed;
@@ -233,6 +237,7 @@ export class ProductionOrdersComponent implements OnInit {
   }
 
   openNew(): void {
+    this.editingId = null;
     this.formError.set(null);
     const defaultGodown = this.godowns().find((g) => g.isDefault) ?? this.godowns()[0];
     this.form.reset({
@@ -248,12 +253,28 @@ export class ProductionOrdersComponent implements OnInit {
     this.showForm.set(true);
   }
 
+  edit(o: ProductionOrderDto): void {
+    this.editingId = o.id;
+    this.formError.set(null);
+    this.form.reset({
+      godownId: o.godownId,
+      date: o.date.substring(0, 10),
+      billOfMaterialsId: o.billOfMaterialsId,
+      quantity: o.quantity,
+      laborOverhead: o.laborOverhead,
+      scrapItemId: o.scrapItemId ?? '',
+      scrapQuantity: o.scrapQuantity ?? 0,
+      notes: o.notes ?? '',
+    });
+    this.showForm.set(true);
+  }
+
   save(): void {
     if (this.form.invalid) return;
     this.loading.set(true);
     this.formError.set(null);
     const v = this.form.getRawValue();
-    this.orderService.create({
+    const payload = {
       godownId: v.godownId,
       date: v.date,
       billOfMaterialsId: v.billOfMaterialsId,
@@ -262,7 +283,11 @@ export class ProductionOrdersComponent implements OnInit {
       scrapItemId: v.scrapItemId || null,
       scrapQuantity: Number(v.scrapQuantity) || 0,
       notes: v.notes || null,
-    }).subscribe({
+    };
+    const req = this.editingId
+      ? this.orderService.update(this.editingId, payload)
+      : this.orderService.create(payload);
+    req.subscribe({
       next: () => { this.loading.set(false); this.close(); this.load(); },
       error: (err) => {
         this.loading.set(false);
@@ -294,5 +319,5 @@ export class ProductionOrdersComponent implements OnInit {
     });
   }
 
-  close(): void { this.showForm.set(false); }
+  close(): void { this.showForm.set(false); this.editingId = null; }
 }

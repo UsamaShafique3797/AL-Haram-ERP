@@ -12,6 +12,7 @@ export interface UserDto {
   godownId?: string | null;
   godownName?: string | null;
   canAccessAllBranches: boolean;
+  isActive: boolean;
 }
 
 export interface AuthResult {
@@ -27,4 +28,13 @@ export interface CreateUserRequest {
   password: string;
   roles: string[];
   godownId?: string | null;
+}
+
+export interface UpdateUserRequest {
+  fullName: string;
+  email?: string | null;
+  password?: string | null;
+  roles: string[];
+  godownId?: string | null;
+  isActive: boolean;
 }

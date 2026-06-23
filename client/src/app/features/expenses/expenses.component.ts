@@ -45,7 +45,10 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
               <td>{{ e.paymentAccountName }}</td>
               <td class="num">{{ money(e.amount) }}</td>
               <td>{{ e.notes || '—' }}</td>
-              <td style="text-align:right">
+              <td style="text-align:right; white-space:nowrap">
+                @if (access.canWrite('expenses')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(e)">Edit</button>
+                }
                 @if (access.canDelete('expenses')) {
                   <button class="btn btn-danger btn-sm" (click)="remove(e)">Delete</button>
                 }
@@ -62,7 +65,7 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
       <div class="modal-backdrop" (click)="close()">
         <div class="modal card" (click)="$event.stopPropagation()">
           <div class="card-pad">
-            <h3>New expense</h3>
+            <h3>{{ editingId ? 'Edit expense' : 'New expense' }}</h3>
             @if (formError()) { <div class="alert alert-error">{{ formError() }}</div> }
             <form [formGroup]="form" (ngSubmit)="save()">
               <div class="row">
@@ -95,7 +98,7 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
                 <button class="btn btn-primary" [disabled]="form.invalid || loading()">
-                  {{ loading() ? 'Saving…' : 'Save expense' }}
+                  {{ loading() ? 'Saving…' : (editingId ? 'Save changes' : 'Save expense') }}
                 </button>
               </div>
             </form>
@@ -128,6 +131,7 @@ export class ExpensesComponent implements OnInit {
   uploading = signal(false);
   error = signal<string | null>(null);
   formError = signal<string | null>(null);
+  editingId: string | null = null;
 
   form = this.fb.nonNullable.group({
     date: [new Date().toISOString().substring(0, 10), Validators.required],
@@ -159,6 +163,7 @@ export class ExpensesComponent implements OnInit {
   }
 
   openNew(): void {
+    this.editingId = null;
     this.formError.set(null);
     this.form.reset({
       date: new Date().toISOString().substring(0, 10),
@@ -171,11 +176,29 @@ export class ExpensesComponent implements OnInit {
     this.showForm.set(true);
   }
 
+  edit(e: ExpenseDto): void {
+    this.editingId = e.id;
+    this.formError.set(null);
+    this.form.reset({
+      date: e.date.substring(0, 10),
+      expenseCategoryId: e.expenseCategoryId,
+      amount: e.amount,
+      paymentAccountId: e.paymentAccountId,
+      notes: e.notes ?? '',
+      attachmentPath: e.attachmentPath ?? '',
+    });
+    this.showForm.set(true);
+  }
+
   save(): void {
     if (this.form.invalid) return;
     this.loading.set(true);
     this.formError.set(null);
-    this.expenseService.create(this.form.getRawValue()).subscribe({
+    const payload = this.form.getRawValue();
+    const req = this.editingId
+      ? this.expenseService.update(this.editingId, payload)
+      : this.expenseService.create(payload);
+    req.subscribe({
       next: () => {
         this.loading.set(false);
         this.close();
@@ -197,7 +220,7 @@ export class ExpensesComponent implements OnInit {
     });
   }
 
-  close(): void { this.showForm.set(false); }
+  close(): void { this.showForm.set(false); this.editingId = null; }
 
   onFile(ev: Event): void {
     const input = ev.target as HTMLInputElement;

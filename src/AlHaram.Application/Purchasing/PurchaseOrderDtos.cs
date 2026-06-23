@@ -59,6 +59,8 @@ public interface IPurchaseOrderService
     Task<IReadOnlyList<PurchaseOrderDto>> GetAllAsync(Guid? supplierId = null, CancellationToken ct = default);
     Task<PurchaseOrderDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Result<PurchaseOrderDto>> CreateAsync(SavePurchaseOrderRequest request, CancellationToken ct = default);
+    Task<Result<PurchaseOrderDto>> UpdateAsync(Guid id, SavePurchaseOrderRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
     Task<Result<PurchaseOrderDto>> UpdateStatusAsync(Guid id, PurchaseOrderStatus status, CancellationToken ct = default);
 }
 

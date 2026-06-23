@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ReportService } from '../../core/services/report.service';
 import { ProfitLossDto } from '../../core/models/domain.models';
+import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.component';
 import { downloadCsv } from '../../core/utils/csv-export';
 
 @Component({
   selector: 'app-profit-loss',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, RouterLink],
+  imports: [CommonModule, FormsModule, DatePipe, RouterLink, CompanyPrintHeaderComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -34,10 +35,9 @@ import { downloadCsv } from '../../core/utils/csv-export';
     @if (loading()) { <div class="card card-pad">Loading…</div> }
 
     @if (report(); as r) {
-      <div class="print-header">
-        <h2>Profit &amp; Loss</h2>
+      <app-company-print-header title="Profit &amp; Loss">
         <p>{{ r.from | date:'mediumDate' }} — {{ r.to | date:'mediumDate' }}</p>
-      </div>
+      </app-company-print-header>
 
       <div class="card card-pad summary">
         <table class="pl-table">
@@ -91,11 +91,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
     .pl-table tr.sub td { font-weight: 600; }
     .pl-table tr.total td { font-weight: 700; font-size: 1.1rem; border-top: 2px solid var(--ink); }
     .num { text-align: right; }
-    .print-header { display: none; }
-    @media print {
-      .no-print { display: none !important; }
-      .print-header { display: block; margin-bottom: 1rem; }
-    }
+    @media print { .no-print { display: none !important; } }
   `],
 })
 export class ProfitLossComponent implements OnInit {

@@ -6,6 +6,7 @@ import { ChartConfiguration } from 'chart.js';
 
 import { AuthService } from '../../core/services/auth.service';
 import { BranchContextService } from '../../core/services/branch-context.service';
+import { CompanyContextService } from '../../core/services/company-context.service';
 
 import { ItemService } from '../../core/services/item.service';
 
@@ -64,9 +65,9 @@ function localDateKey(d: Date): string {
       <div class="dash-panel-bg" aria-hidden="true"></div>
       <div class="dash-panel-inner">
         <div class="dash-hero-content">
-          <p class="dash-hero-tag">Al-Haram Steel &amp; Construction</p>
+          <p class="dash-hero-tag">{{ companyCtx.name() }}</p>
           <h1 class="dash-hero-title">Welcome back, {{ auth.user()?.fullName }}</h1>
-          <p class="dash-hero-sub">Live business overview from inventory, sales and finance.</p>
+          <p class="dash-hero-sub">{{ companyCtx.tagline() }}</p>
           @if (scopeLabel()) {
             <p class="dash-hero-scope">Showing data for: <strong>{{ scopeLabel() }}</strong></p>
           }
@@ -318,12 +319,16 @@ function localDateKey(d: Date): string {
     }
 
     .dash-hero-tag {
+      display: inline-block;
       margin: 0 0 .45rem;
+      padding: .3rem .65rem;
       font-size: .72rem;
       font-weight: 700;
       letter-spacing: .12em;
       text-transform: uppercase;
-      color: rgba(255,255,255,.72);
+      color: #fff;
+      background: var(--brand);
+      border-radius: 6px;
     }
 
     .dash-hero-title {
@@ -596,6 +601,7 @@ function localDateKey(d: Date): string {
 export class DashboardComponent implements OnInit {
 
   auth = inject(AuthService);
+  companyCtx = inject(CompanyContextService);
   private branchCtx = inject(BranchContextService);
 
   private itemService = inject(ItemService);

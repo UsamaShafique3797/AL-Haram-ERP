@@ -105,6 +105,8 @@ public interface IQuotationService
     Task<IReadOnlyList<QuotationDto>> GetAllAsync(Guid? customerId = null, CancellationToken ct = default);
     Task<QuotationDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Result<QuotationDto>> CreateAsync(SaveQuotationRequest request, CancellationToken ct = default);
+    Task<Result<QuotationDto>> UpdateAsync(Guid id, SaveQuotationRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
     Task<Result<SalesInvoiceDto>> ConvertToInvoiceAsync(Guid id, SaveSalesInvoiceRequest request, CancellationToken ct = default);
 }
 

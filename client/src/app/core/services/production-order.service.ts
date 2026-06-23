@@ -21,6 +21,10 @@ export class ProductionOrderService {
     return this.http.post<ProductionOrderDto>(this.api, request);
   }
 
+  update(id: string, request: SaveProductionOrderRequest): Observable<ProductionOrderDto> {
+    return this.http.put<ProductionOrderDto>(`${this.api}/${id}`, request);
+  }
+
   complete(id: string): Observable<ProductionOrderDto> {
     return this.http.post<ProductionOrderDto>(`${this.api}/${id}/complete`, {});
   }

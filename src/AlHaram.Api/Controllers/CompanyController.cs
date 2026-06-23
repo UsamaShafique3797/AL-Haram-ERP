@@ -14,6 +14,11 @@ public class CompanyController : ControllerBase
 
     public CompanyController(ICompanyService company) => _company = company;
 
+    [HttpGet("branding")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetBranding(CancellationToken ct)
+        => Ok(await _company.GetBrandingAsync(ct));
+
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
         => Ok(await _company.GetAsync(ct));

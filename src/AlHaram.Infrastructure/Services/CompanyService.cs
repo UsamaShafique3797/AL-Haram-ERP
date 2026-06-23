@@ -11,16 +11,32 @@ public class CompanyService : ICompanyService
 
     public CompanyService(AppDbContext db) => _db = db;
 
+    public async Task<CompanyBrandingDto> GetBrandingAsync(CancellationToken ct = default)
+    {
+        var company = await EnsureCompanyAsync(ct);
+        return ToBrandingDto(company);
+    }
+
     public async Task<CompanyDto> GetAsync(CancellationToken ct = default)
+    {
+        var company = await EnsureCompanyAsync(ct);
+        return ToDto(company);
+    }
+
+    private async Task<Company> EnsureCompanyAsync(CancellationToken ct)
     {
         var company = await _db.Companies.FirstOrDefaultAsync(ct);
         if (company is null)
         {
-            company = new Company { Name = "Al-Haram Steel" };
+            company = new Company
+            {
+                Name = "Al-Haram Steel",
+                Tagline = "Steel & Construction",
+            };
             _db.Companies.Add(company);
             await _db.SaveChangesAsync(ct);
         }
-        return ToDto(company);
+        return company;
     }
 
     public async Task<CompanyDto> UpdateAsync(UpdateCompanyRequest request, CancellationToken ct = default)
@@ -33,6 +49,7 @@ public class CompanyService : ICompanyService
         }
 
         company.Name = request.Name;
+        company.Tagline = request.Tagline;
         company.LegalName = request.LegalName;
         company.Address = request.Address;
         company.Phone = request.Phone;
@@ -46,6 +63,9 @@ public class CompanyService : ICompanyService
         return ToDto(company);
     }
 
+    private static CompanyBrandingDto ToBrandingDto(Company c) =>
+        new(c.Name, c.Tagline, c.LogoUrl);
+
     private static CompanyDto ToDto(Company c) =>
-        new(c.Id, c.Name, c.LegalName, c.Address, c.Phone, c.Email, c.TaxNumber, c.LogoUrl, c.Currency, c.DefaultTaxRate);
+        new(c.Id, c.Name, c.Tagline, c.LegalName, c.Address, c.Phone, c.Email, c.TaxNumber, c.LogoUrl, c.Currency, c.DefaultTaxRate);
 }

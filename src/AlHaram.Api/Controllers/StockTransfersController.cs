@@ -33,6 +33,22 @@ public class StockTransfersController : ControllerBase
         return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] SaveStockTransferRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateAsync(id, request, ct);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var ok = await _service.DeleteAsync(id, ct);
+        return ok ? NoContent() : NotFound();
+    }
+
     [HttpPost("{id:guid}/complete")]
     [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
     public async Task<IActionResult> Complete(Guid id, CancellationToken ct)

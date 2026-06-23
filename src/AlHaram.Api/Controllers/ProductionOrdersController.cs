@@ -33,6 +33,14 @@ public class ProductionOrdersController : ControllerBase
         return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] SaveProductionOrderRequest request, CancellationToken ct)
+    {
+        var result = await _service.UpdateAsync(id, request, ct);
+        return result.Succeeded ? Ok(result.Data) : BadRequest(new { errors = result.Errors });
+    }
+
     [HttpPost("{id:guid}/complete")]
     [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> Complete(Guid id, CancellationToken ct)

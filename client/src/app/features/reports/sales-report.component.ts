@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ReportService } from '../../core/services/report.service';
 import { SalesReportDto } from '../../core/models/domain.models';
+import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.component';
 import { downloadCsv } from '../../core/utils/csv-export';
 
 @Component({
   selector: 'app-sales-report',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, RouterLink],
+  imports: [CommonModule, FormsModule, DatePipe, RouterLink, CompanyPrintHeaderComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -34,10 +35,9 @@ import { downloadCsv } from '../../core/utils/csv-export';
     @if (loading()) { <div class="card card-pad">Loading…</div> }
 
     @if (report(); as r) {
-      <div class="print-header">
-        <h2>Sales Report</h2>
+      <app-company-print-header title="Sales Report">
         <p>{{ r.from | date:'mediumDate' }} — {{ r.to | date:'mediumDate' }}</p>
-      </div>
+      </app-company-print-header>
 
       <div class="row kpi-row no-print">
         <div class="kpi-card"><span class="kpi-label">Invoices</span><span class="kpi-value">{{ r.invoiceCount }}</span></div>
@@ -93,8 +93,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
     .kpi-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; }
     .kpi-value { font-size: 1.2rem; font-weight: 700; }
     .num { text-align: right; }
-    .print-header { display: none; }
-    @media print { .no-print { display: none !important; } .print-header { display: block; margin-bottom: 1rem; } }
+    @media print { .no-print { display: none !important; } }
   `],
 })
 export class SalesReportComponent implements OnInit {

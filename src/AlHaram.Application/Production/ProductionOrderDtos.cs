@@ -51,6 +51,7 @@ public interface IProductionOrderService
     Task<IReadOnlyList<ProductionOrderDto>> GetAllAsync(CancellationToken ct = default);
     Task<ProductionOrderDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Result<ProductionOrderDto>> CreateAsync(SaveProductionOrderRequest request, CancellationToken ct = default);
+    Task<Result<ProductionOrderDto>> UpdateAsync(Guid id, SaveProductionOrderRequest request, CancellationToken ct = default);
     Task<Result<ProductionOrderDto>> CompleteAsync(Guid id, CancellationToken ct = default);
     Task<Result<ProductionOrderDto>> CancelAsync(Guid id, CancellationToken ct = default);
 }

@@ -1,6 +1,13 @@
+export interface CompanyBrandingDto {
+  name: string;
+  tagline?: string | null;
+  logoUrl?: string | null;
+}
+
 export interface CompanyDto {
   id: string;
   name: string;
+  tagline?: string | null;
   legalName?: string | null;
   address?: string | null;
   phone?: string | null;

@@ -21,6 +21,10 @@ export class ExpenseService {
     return this.http.post<ExpenseDto>(this.api, request);
   }
 
+  update(id: string, request: SaveExpenseRequest): Observable<ExpenseDto> {
+    return this.http.put<ExpenseDto>(`${this.api}/${id}`, request);
+  }
+
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
   }

@@ -15,6 +15,7 @@ export class FileService {
   }
 
   fileUrl(path: string): string {
-    return `${environment.apiUrl}/${path}`;
+    const normalized = path.replace(/^\/+/, '');
+    return `${this.api}/${normalized}`;
   }
 }

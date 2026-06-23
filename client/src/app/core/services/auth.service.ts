@@ -51,6 +51,7 @@ export class AuthService {
       ...u,
       roles: u.roles ?? [],
       canAccessAllBranches: u.canAccessAllBranches ?? !u.godownId,
+      isActive: u.isActive ?? true,
     } as UserDto;
   }
 }

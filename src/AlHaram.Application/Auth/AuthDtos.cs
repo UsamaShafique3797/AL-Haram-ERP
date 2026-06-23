@@ -15,7 +15,8 @@ public record UserDto(
     IList<string> Roles,
     Guid? GodownId,
     string? GodownName,
-    bool CanAccessAllBranches);
+    bool CanAccessAllBranches,
+    bool IsActive);
 
 public record CreateUserRequest(
     string UserName,
@@ -24,3 +25,11 @@ public record CreateUserRequest(
     string Password,
     IList<string> Roles,
     Guid? GodownId);
+
+public record UpdateUserRequest(
+    string FullName,
+    string? Email,
+    string? Password,
+    IList<string> Roles,
+    Guid? GodownId,
+    bool IsActive);

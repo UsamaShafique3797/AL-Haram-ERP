@@ -1,5 +1,7 @@
 namespace AlHaram.Application.Finance;
 
+using AlHaram.Application.Common.Models;
+
 public record ExpenseDto(
     Guid Id,
     string Number,
@@ -25,5 +27,6 @@ public interface IExpenseService
     Task<IReadOnlyList<ExpenseDto>> GetAllAsync(DateTime? from = null, DateTime? to = null, Guid? categoryId = null, CancellationToken ct = default);
     Task<ExpenseDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Common.Models.Result<ExpenseDto>> CreateAsync(SaveExpenseRequest request, CancellationToken ct = default);
+    Task<Result<ExpenseDto>> UpdateAsync(Guid id, SaveExpenseRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 }

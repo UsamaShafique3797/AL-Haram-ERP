@@ -2,8 +2,8 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DeliveryChallanService } from '../../core/services/remaining-features.service';
-import { CompanyService } from '../../core/services/company.service';
-import { CompanyDto, DeliveryChallanDto } from '../../core/models/domain.models';
+import { CompanyContextService } from '../../core/services/company-context.service';
+import { DeliveryChallanDto } from '../../core/models/domain.models';
 
 @Component({
   selector: 'app-challan-print',
@@ -20,11 +20,12 @@ import { CompanyDto, DeliveryChallanDto } from '../../core/models/domain.models'
       <div class="invoice-paper">
         <header class="hdr">
           <div class="brand-row">
-            <img src="/images/logo.png" alt="Al Haram Steel" class="logo" />
+            <img [src]="companyCtx.logoSrc()" [alt]="companyCtx.name()" class="logo" />
             <div>
-              <h1>{{ company()?.name || 'Al-Haram Steel' }}</h1>
-              @if (company()?.address) { <div class="muted">{{ company()?.address }}</div> }
-              @if (company()?.phone) { <div class="muted">Phone: {{ company()?.phone }}</div> }
+              <h1>{{ companyCtx.name() }}</h1>
+              @if (companyCtx.tagline()) { <div class="tagline">{{ companyCtx.tagline() }}</div> }
+              @if (companyCtx.company()?.address) { <div class="muted">{{ companyCtx.company()?.address }}</div> }
+              @if (companyCtx.company()?.phone) { <div class="muted">Phone: {{ companyCtx.company()?.phone }}</div> }
             </div>
           </div>
           <div class="meta">
@@ -72,7 +73,7 @@ import { CompanyDto, DeliveryChallanDto } from '../../core/models/domain.models'
 
         <footer class="ftr">
           <div>Received goods in good condition.</div>
-          <div class="muted">{{ company()?.name }}</div>
+          <div class="muted">{{ companyCtx.name() }}</div>
         </footer>
       </div>
     } @else if (loaded()) {
@@ -87,7 +88,8 @@ import { CompanyDto, DeliveryChallanDto } from '../../core/models/domain.models'
     .hdr { display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem;
       padding-bottom: 1rem; border-bottom: 2px solid #1f2933; }
     .brand-row { display: flex; gap: 1rem; align-items: center; }
-    .logo { width: 64px; height: 64px; border-radius: 50%; }
+    .logo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: #fff; }
+    .tagline { color: #495057; font-size: .85rem; margin-bottom: .15rem; }
     .hdr h1 { font-size: 1.4rem; margin: 0; color: #c0392b; }
     .hdr h2 { font-size: 1.1rem; margin: 0 0 .4rem; text-transform: uppercase; letter-spacing: .08em; }
     .meta { text-align: right; }
@@ -113,10 +115,9 @@ import { CompanyDto, DeliveryChallanDto } from '../../core/models/domain.models'
 export class ChallanPrintComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private challanService = inject(DeliveryChallanService);
-  private companyService = inject(CompanyService);
+  companyCtx = inject(CompanyContextService);
 
   challan = signal<DeliveryChallanDto | null>(null);
-  company = signal<CompanyDto | null>(null);
   loaded = signal(false);
 
   ngOnInit(): void {
@@ -127,7 +128,7 @@ export class ChallanPrintComponent implements OnInit {
       next: (c) => { this.challan.set(c); this.loaded.set(true); },
       error: () => this.loaded.set(true),
     });
-    this.companyService.get().subscribe((c) => this.company.set(c));
+    this.companyCtx.refresh();
   }
 
   num(v: number): string {

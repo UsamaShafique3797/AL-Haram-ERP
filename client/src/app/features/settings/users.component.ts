@@ -26,10 +26,10 @@ import { GodownDto } from '../../core/models/domain.models';
 
     <div class="card" style="overflow:hidden">
       <table class="table">
-        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Branch</th><th>Roles</th></tr></thead>
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Branch</th><th>Roles</th><th>Status</th><th></th></tr></thead>
         <tbody>
           @for (u of users(); track u.id) {
-            <tr>
+            <tr [class.inactive-row]="!u.isActive">
               <td>{{ u.fullName }}</td>
               <td>{{ u.userName }}</td>
               <td>{{ u.email || '—' }}</td>
@@ -37,9 +37,18 @@ import { GodownDto } from '../../core/models/domain.models';
               <td>
                 @for (r of u.roles; track r) { <span class="badge badge-muted" style="margin-right:.3rem">{{ r }}</span> }
               </td>
+              <td>{{ u.isActive ? 'Active' : 'Inactive' }}</td>
+              <td style="text-align:right; white-space:nowrap">
+                @if (access.canWrite('settings/users')) {
+                  <button class="btn btn-ghost btn-sm" (click)="edit(u)">Edit</button>
+                }
+                @if (access.canDelete('settings/users') && u.isActive) {
+                  <button class="btn btn-danger btn-sm" (click)="remove(u)">Deactivate</button>
+                }
+              </td>
             </tr>
           } @empty {
-            <tr><td colspan="5" style="text-align:center;color:var(--muted)">No users yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No users yet.</td></tr>
           }
         </tbody>
       </table>
@@ -49,16 +58,22 @@ import { GodownDto } from '../../core/models/domain.models';
       <div class="modal-backdrop" (click)="close()">
         <div class="modal card" (click)="$event.stopPropagation()">
           <div class="card-pad">
-            <h3>New user</h3>
+            <h3>{{ editingId ? 'Edit user' : 'New user' }}</h3>
             @if (formError()) { <div class="alert alert-error">{{ formError() }}</div> }
             <form [formGroup]="form" (ngSubmit)="save()">
               <div class="row">
                 <div class="field" style="flex:1"><label>Full name</label><input formControlName="fullName" /></div>
-                <div class="field" style="flex:1"><label>Username</label><input formControlName="userName" /></div>
+                <div class="field" style="flex:1">
+                  <label>Username</label>
+                  <input formControlName="userName" [readonly]="!!editingId" />
+                </div>
               </div>
               <div class="row">
                 <div class="field" style="flex:1"><label>Email</label><input formControlName="email" /></div>
-                <div class="field" style="flex:1"><label>Password</label><input type="password" formControlName="password" /></div>
+                <div class="field" style="flex:1">
+                  <label>{{ editingId ? 'New password (optional)' : 'Password' }}</label>
+                  <input type="password" formControlName="password" />
+                </div>
               </div>
               <div class="field">
                 <label>Branch</label>
@@ -75,15 +90,20 @@ import { GodownDto } from '../../core/models/domain.models';
                 <div class="roles">
                   @for (r of roles(); track r) {
                     <label class="check">
-                      <input type="checkbox" [value]="r" (change)="toggleRole(r, $event)" /> {{ r }}
+                      <input type="checkbox" [checked]="selectedRoles.has(r)" (change)="toggleRole(r, $event)" /> {{ r }}
                     </label>
                   }
                 </div>
               </div>
+              @if (editingId) {
+                <div class="field">
+                  <label class="check"><input type="checkbox" formControlName="isActive" /> Active user</label>
+                </div>
+              }
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
                 <button class="btn btn-primary" [disabled]="form.invalid || loading()">
-                  {{ loading() ? 'Saving…' : 'Create user' }}
+                  {{ loading() ? 'Saving…' : (editingId ? 'Save changes' : 'Create user') }}
                 </button>
               </div>
             </form>
@@ -99,6 +119,7 @@ import { GodownDto } from '../../core/models/domain.models';
     .roles { display: flex; flex-wrap: wrap; gap: .75rem; }
     .check { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--ink-soft); }
     .hint { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
+    .inactive-row { opacity: .65; }
   `],
 })
 export class UsersComponent implements OnInit {
@@ -115,13 +136,15 @@ export class UsersComponent implements OnInit {
   error = signal<string | null>(null);
   formError = signal<string | null>(null);
   selectedRoles = new Set<string>();
+  editingId: string | null = null;
 
   form = this.fb.nonNullable.group({
     fullName: ['', Validators.required],
     userName: ['', Validators.required],
     email: [''],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', [Validators.minLength(6)]],
     godownId: [''],
+    isActive: [true],
   });
 
   ngOnInit(): void {
@@ -138,9 +161,30 @@ export class UsersComponent implements OnInit {
   }
 
   openNew(): void {
+    this.editingId = null;
     this.selectedRoles.clear();
     this.formError.set(null);
-    this.form.reset({ fullName: '', userName: '', email: '', password: '', godownId: '' });
+    this.form.reset({ fullName: '', userName: '', email: '', password: '', godownId: '', isActive: true });
+    this.form.get('password')?.setValidators([Validators.required, Validators.minLength(6)]);
+    this.form.get('password')?.updateValueAndValidity();
+    this.showForm.set(true);
+  }
+
+  edit(u: UserDto): void {
+    this.editingId = u.id;
+    this.selectedRoles.clear();
+    u.roles.forEach((r) => this.selectedRoles.add(r));
+    this.formError.set(null);
+    this.form.reset({
+      fullName: u.fullName,
+      userName: u.userName,
+      email: u.email ?? '',
+      password: '',
+      godownId: u.godownId ?? '',
+      isActive: u.isActive,
+    });
+    this.form.get('password')?.setValidators([Validators.minLength(6)]);
+    this.form.get('password')?.updateValueAndValidity();
     this.showForm.set(true);
   }
 
@@ -154,12 +198,37 @@ export class UsersComponent implements OnInit {
     this.loading.set(true);
     this.formError.set(null);
     const raw = this.form.getRawValue();
-    const payload = {
+    const roles = [...this.selectedRoles];
+
+    if (this.editingId) {
+      this.service.update(this.editingId, {
+        fullName: raw.fullName,
+        email: raw.email || null,
+        password: raw.password || null,
+        roles,
+        godownId: raw.godownId || null,
+        isActive: raw.isActive,
+      }).subscribe({
+        next: () => { this.loading.set(false); this.close(); this.load(); },
+        error: (err) => {
+          this.loading.set(false);
+          this.formError.set(err?.error?.errors?.[0] ?? 'Could not update user.');
+        },
+      });
+      return;
+    }
+
+    if (!raw.password) {
+      this.loading.set(false);
+      this.formError.set('Password is required for new users.');
+      return;
+    }
+
+    this.service.create({
       ...raw,
       godownId: raw.godownId || null,
-      roles: [...this.selectedRoles],
-    };
-    this.service.create(payload).subscribe({
+      roles,
+    }).subscribe({
       next: () => { this.loading.set(false); this.close(); this.load(); },
       error: (err) => {
         this.loading.set(false);
@@ -168,5 +237,13 @@ export class UsersComponent implements OnInit {
     });
   }
 
-  close(): void { this.showForm.set(false); }
+  remove(u: UserDto): void {
+    if (!confirm(`Deactivate user "${u.fullName}"? They will no longer be able to sign in.`)) return;
+    this.service.deactivate(u.id).subscribe({
+      next: () => this.load(),
+      error: () => this.error.set('Could not deactivate user.'),
+    });
+  }
+
+  close(): void { this.showForm.set(false); this.editingId = null; }
 }

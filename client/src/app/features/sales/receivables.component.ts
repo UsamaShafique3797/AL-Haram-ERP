@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CustomerLedgerService } from '../../core/services/customer-ledger.service';
-import { CompanyService } from '../../core/services/company.service';
+import { CompanyContextService } from '../../core/services/company-context.service';
 import { SalesInvoiceService } from '../../core/services/sales-invoice.service';
 import { WhatsAppService } from '../../core/services/whatsapp.service';
 import { AccessService } from '../../core/services/access.service';
@@ -99,12 +99,11 @@ export class ReceivablesComponent implements OnInit {
   private ledgerService = inject(CustomerLedgerService);
   private invoiceService = inject(SalesInvoiceService);
   private whatsAppService = inject(WhatsAppService);
-  private companyService = inject(CompanyService);
+  private companyCtx = inject(CompanyContextService);
 
   rows = signal<ReceivableDto[]>([]);
   error = signal<string | null>(null);
   remindingId = signal<string | null>(null);
-  companyName = signal('Al-Haram Steel');
 
   withBalance = computed(() => this.rows().filter((r) => r.outstanding > 0).length);
   totalOutstanding = computed(() => this.rows().reduce((s, r) => s + Math.max(0, r.outstanding), 0));
@@ -113,7 +112,6 @@ export class ReceivablesComponent implements OnInit {
 
   ngOnInit(): void {
     this.ledgerService.getReceivables().subscribe((r) => this.rows.set(r));
-    this.companyService.get().subscribe((c) => this.companyName.set(c.name));
   }
 
   remindText(row: ReceivableDto): void {
@@ -122,7 +120,7 @@ export class ReceivablesComponent implements OnInit {
     this.invoiceService.getOpenForCustomer(row.customerId).subscribe({
       next: (open) => {
         const err = this.whatsAppService.sharePaymentReminderText(
-          row.phone, row.customerName, row.outstanding, open, this.companyName(),
+          row.phone, row.customerName, row.outstanding, open, this.companyCtx.name(),
         );
         this.remindingId.set(null);
         if (err) this.error.set(err);
@@ -139,7 +137,7 @@ export class ReceivablesComponent implements OnInit {
     this.error.set(null);
     try {
       const err = await this.whatsAppService.shareStatementPdf(
-        row.customerId, row.phone, row.customerName, row.outstanding, this.companyName(),
+        row.customerId, row.phone, row.customerName, row.outstanding, this.companyCtx.name(),
       );
       if (err) this.error.set(err);
     } catch {

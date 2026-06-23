@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AgeingService } from '../../core/services/report.service';
 import { ReceivableAgeingDto } from '../../core/models/domain.models';
+import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.component';
 
 @Component({
   selector: 'app-receivables-ageing',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, CompanyPrintHeaderComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -23,10 +24,9 @@ import { ReceivableAgeingDto } from '../../core/models/domain.models';
     @if (loading()) { <div class="card card-pad">Loading…</div> }
 
     @if (rows().length) {
-      <div class="print-header">
-        <h2>Receivables Ageing</h2>
+      <app-company-print-header title="Receivables Ageing">
         <p>Total outstanding: {{ money(grandTotal()) }}</p>
-      </div>
+      </app-company-print-header>
 
       <div class="row kpi-row no-print">
         <div class="kpi-card"><span class="kpi-label">Customers</span><span class="kpi-value">{{ rows().length }}</span></div>
@@ -76,8 +76,7 @@ import { ReceivableAgeingDto } from '../../core/models/domain.models';
     .kpi-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; }
     .kpi-value { font-size: 1.2rem; font-weight: 700; }
     .num { text-align: right; }
-    .print-header { display: none; }
-    @media print { .no-print { display: none !important; } .print-header { display: block; margin-bottom: 1rem; } }
+    @media print { .no-print { display: none !important; } }
   `],
 })
 export class ReceivablesAgeingComponent implements OnInit {

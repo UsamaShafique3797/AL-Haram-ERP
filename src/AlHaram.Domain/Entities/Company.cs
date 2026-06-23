@@ -8,6 +8,7 @@ namespace AlHaram.Domain.Entities;
 public class Company : BaseEntity
 {
     public string Name { get; set; } = string.Empty;
+    public string? Tagline { get; set; }
     public string? LegalName { get; set; }
     public string? Address { get; set; }
     public string? Phone { get; set; }

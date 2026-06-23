@@ -4,7 +4,7 @@ import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } fr
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CustomerService } from '../../core/services/customer.service';
-import { CompanyService } from '../../core/services/company.service';
+import { CompanyContextService } from '../../core/services/company-context.service';
 import { GodownService } from '../../core/services/godown.service';
 import { ItemService } from '../../core/services/item.service';
 import { PaymentAccountService } from '../../core/services/payment-account.service';
@@ -227,7 +227,7 @@ export class InvoicesComponent implements OnInit {
   private itemService = inject(ItemService);
   private paymentAccountService = inject(PaymentAccountService);
   private whatsAppService = inject(WhatsAppService);
-  private companyService = inject(CompanyService);
+  private companyCtx = inject(CompanyContextService);
   private router = inject(Router);
 
   invoices = signal<SalesInvoiceDto[]>([]);
@@ -245,8 +245,6 @@ export class InvoicesComponent implements OnInit {
   formError = signal<string | null>(null);
   customerFormError = signal<string | null>(null);
   whatsAppSendingId = signal<string | null>(null);
-  companyName = signal('Al-Haram Steel');
-
   customerTypes = CustomerType;
 
   customerForm = this.fb.nonNullable.group({
@@ -308,7 +306,6 @@ export class InvoicesComponent implements OnInit {
     });
 
     this.form.valueChanges.subscribe(() => this.formTick.update((n) => n + 1));
-    this.companyService.get().subscribe((c) => this.companyName.set(c.name));
   }
 
   load(): void {
@@ -403,7 +400,7 @@ export class InvoicesComponent implements OnInit {
       next: async (saved) => {
         if (sendWa) {
           const customer = this.customers().find((c) => c.id === saved.customerId);
-          const err = await this.whatsAppService.shareInvoicePdf(saved, customer?.phone, this.companyName());
+          const err = await this.whatsAppService.shareInvoicePdf(saved, customer?.phone, this.companyCtx.name());
           if (err) this.formError.set(err);
         }
         this.loading.set(false);
@@ -423,7 +420,7 @@ export class InvoicesComponent implements OnInit {
     this.error.set(null);
     const customer = this.customers().find((c) => c.id === invoice.customerId);
     try {
-      const err = await this.whatsAppService.shareInvoicePdf(invoice, customer?.phone, this.companyName());
+      const err = await this.whatsAppService.shareInvoicePdf(invoice, customer?.phone, this.companyCtx.name());
       if (err) this.error.set(err);
     } catch {
       this.error.set('Could not download invoice PDF.');

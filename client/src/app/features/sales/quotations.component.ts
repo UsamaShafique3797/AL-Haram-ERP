@@ -7,7 +7,7 @@ import { ItemService } from '../../core/services/item.service';
 import { QuotationService } from '../../core/services/remaining-features.service';
 import { AccessService } from '../../core/services/access.service';
 import {
-  CustomerDto, ItemDto, QuotationDto, QuotationStatusLabels,
+  CustomerDto, ItemDto, QuotationDto, QuotationStatus, QuotationStatusLabels,
 } from '../../core/models/domain.models';
 
 @Component({
@@ -36,7 +36,7 @@ import {
     <div class="card" style="overflow:hidden">
       <table class="table">
         <thead>
-          <tr><th>Number</th><th>Date</th><th>Customer</th><th>Valid until</th><th>Status</th><th>Total</th></tr>
+          <tr><th>Number</th><th>Date</th><th>Customer</th><th>Valid until</th><th>Status</th><th>Total</th><th></th></tr>
         </thead>
         <tbody>
           @for (q of quotations(); track q.id) {
@@ -47,9 +47,19 @@ import {
               <td>{{ q.validUntil ? (q.validUntil | date:'mediumDate') : '—' }}</td>
               <td>{{ statusLabel(q.status) }}</td>
               <td>{{ money(q.total) }}</td>
+              <td style="text-align:right; white-space:nowrap">
+                @if (q.status !== convertedStatus) {
+                  @if (access.canWrite('sales/quotations')) {
+                    <button class="btn btn-ghost btn-sm" (click)="edit(q)">Edit</button>
+                  }
+                  @if (access.canDelete('sales/quotations')) {
+                    <button class="btn btn-danger btn-sm" (click)="remove(q)">Delete</button>
+                  }
+                }
+              </td>
             </tr>
           } @empty {
-            <tr><td colspan="6" style="text-align:center;color:var(--muted)">No quotations yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No quotations yet.</td></tr>
           }
         </tbody>
       </table>
@@ -59,7 +69,7 @@ import {
       <div class="modal-backdrop" (click)="close()">
         <div class="modal card" (click)="$event.stopPropagation()">
           <div class="card-pad">
-            <h3>New quotation</h3>
+            <h3>{{ editingId ? 'Edit quotation' : 'New quotation' }}</h3>
             @if (formError()) { <div class="alert alert-error">{{ formError() }}</div> }
 
             <form [formGroup]="form" (ngSubmit)="save()">
@@ -120,7 +130,7 @@ import {
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
                 <button class="btn btn-primary" [disabled]="form.invalid || lines.length === 0 || loading()">
-                  {{ loading() ? 'Saving…' : 'Save quotation' }}
+                  {{ loading() ? 'Saving…' : (editingId ? 'Save changes' : 'Save quotation') }}
                 </button>
               </div>
             </form>
@@ -155,6 +165,8 @@ export class QuotationsComponent implements OnInit {
   error = signal<string | null>(null);
   formError = signal<string | null>(null);
   private formTick = signal(0);
+  editingId: string | null = null;
+  readonly convertedStatus = QuotationStatus.Converted;
 
   totalValue = computed(() => this.quotations().reduce((s, q) => s + q.total, 0));
 
@@ -247,6 +259,7 @@ export class QuotationsComponent implements OnInit {
   }
 
   openNew(): void {
+    this.editingId = null;
     this.formError.set(null);
     this.lines.clear();
     this.form.reset({
@@ -261,13 +274,36 @@ export class QuotationsComponent implements OnInit {
     this.showForm.set(true);
   }
 
+  edit(q: QuotationDto): void {
+    this.editingId = q.id;
+    this.formError.set(null);
+    this.lines.clear();
+    this.form.reset({
+      customerId: q.customerId,
+      date: q.date.substring(0, 10),
+      validUntil: q.validUntil ? q.validUntil.substring(0, 10) : '',
+      discount: q.discount,
+      taxRate: q.taxRate,
+      notes: q.notes ?? '',
+    });
+    for (const l of q.lines) {
+      this.lines.push(this.fb.nonNullable.group({
+        itemId: [l.itemId, Validators.required],
+        unitId: [l.unitId, Validators.required],
+        quantity: [l.quantity, [Validators.required, Validators.min(0.0001)]],
+        rate: [l.rate, [Validators.required, Validators.min(0)]],
+        discount: [l.discount, [Validators.min(0)]],
+      }));
+    }
+    this.showForm.set(true);
+  }
+
   save(): void {
     if (this.form.invalid || this.lines.length === 0) return;
     this.loading.set(true);
     this.formError.set(null);
     const v = this.form.getRawValue();
-
-    this.quotationService.create({
+    const payload = {
       date: v.date,
       validUntil: v.validUntil || null,
       customerId: v.customerId,
@@ -281,7 +317,11 @@ export class QuotationsComponent implements OnInit {
         rate: Number(l.rate),
         discount: Number(l.discount || 0),
       })),
-    }).subscribe({
+    };
+    const req = this.editingId
+      ? this.quotationService.update(this.editingId, payload)
+      : this.quotationService.create(payload);
+    req.subscribe({
       next: () => {
         this.loading.set(false);
         this.close();
@@ -294,5 +334,13 @@ export class QuotationsComponent implements OnInit {
     });
   }
 
-  close(): void { this.showForm.set(false); }
+  remove(q: QuotationDto): void {
+    if (!confirm(`Delete quotation ${q.number}?`)) return;
+    this.quotationService.delete(q.id).subscribe({
+      next: () => this.load(),
+      error: () => this.error.set('Could not delete quotation.'),
+    });
+  }
+
+  close(): void { this.showForm.set(false); this.editingId = null; }
 }

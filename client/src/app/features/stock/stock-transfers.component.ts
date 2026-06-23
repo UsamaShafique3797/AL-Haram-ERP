@@ -42,11 +42,17 @@ import {
               <td>{{ t.toGodownName }}</td>
               <td>{{ statusLabel(t.status) }}</td>
               <td>{{ t.lines.length }}</td>
-              <td style="text-align:right">
-                @if (t.status === draftStatus && access.canWrite('stock/transfers')) {
-                  <button class="btn btn-primary btn-sm" (click)="complete(t)" [disabled]="actionId() === t.id">
-                    {{ actionId() === t.id ? 'Completing…' : 'Complete' }}
-                  </button>
+              <td style="text-align:right; white-space:nowrap">
+                @if (t.status === draftStatus) {
+                  @if (access.canWrite('stock/transfers')) {
+                    <button class="btn btn-ghost btn-sm" (click)="edit(t)">Edit</button>
+                    <button class="btn btn-primary btn-sm" (click)="complete(t)" [disabled]="actionId() === t.id">
+                      {{ actionId() === t.id ? 'Completing…' : 'Complete' }}
+                    </button>
+                  }
+                  @if (access.canDelete('stock/transfers')) {
+                    <button class="btn btn-danger btn-sm" (click)="remove(t)">Delete</button>
+                  }
                 }
               </td>
             </tr>
@@ -61,7 +67,7 @@ import {
       <div class="modal-backdrop" (click)="close()">
         <div class="modal card" (click)="$event.stopPropagation()">
           <div class="card-pad">
-            <h3>New stock transfer</h3>
+            <h3>{{ editingId ? 'Edit stock transfer' : 'New stock transfer' }}</h3>
             @if (formError()) { <div class="alert alert-error">{{ formError() }}</div> }
 
             <form [formGroup]="form" (ngSubmit)="save()">
@@ -106,7 +112,7 @@ import {
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
                 <button class="btn btn-primary" [disabled]="form.invalid || lines.length === 0 || loading()">
-                  {{ loading() ? 'Saving…' : 'Create transfer' }}
+                  {{ loading() ? 'Saving…' : (editingId ? 'Save changes' : 'Create transfer') }}
                 </button>
               </div>
             </form>
@@ -138,6 +144,7 @@ export class StockTransfersComponent implements OnInit {
   actionId = signal<string | null>(null);
   error = signal<string | null>(null);
   formError = signal<string | null>(null);
+  editingId: string | null = null;
 
   readonly draftStatus = StockTransferStatus.Draft;
 
@@ -193,6 +200,7 @@ export class StockTransfersComponent implements OnInit {
   removeLine(i: number): void { this.lines.removeAt(i); }
 
   openNew(): void {
+    this.editingId = null;
     this.formError.set(null);
     const defaultGodown = this.godowns().find((g) => g.isDefault) ?? this.godowns()[0];
     const toGodown = this.godowns().find((g) => g.id !== defaultGodown?.id) ?? this.godowns()[1];
@@ -207,6 +215,25 @@ export class StockTransfersComponent implements OnInit {
     this.showForm.set(true);
   }
 
+  edit(t: StockTransferDto): void {
+    this.editingId = t.id;
+    this.formError.set(null);
+    this.lines.clear();
+    this.form.reset({
+      fromGodownId: t.fromGodownId,
+      toGodownId: t.toGodownId,
+      date: t.date.substring(0, 10),
+      notes: t.notes ?? '',
+    });
+    for (const l of t.lines) {
+      this.lines.push(this.fb.nonNullable.group({
+        itemId: [l.itemId, Validators.required],
+        quantity: [l.quantity, [Validators.required, Validators.min(0.0001)]],
+      }));
+    }
+    this.showForm.set(true);
+  }
+
   save(): void {
     if (this.form.invalid || this.lines.length === 0) return;
     const v = this.form.getRawValue();
@@ -216,8 +243,7 @@ export class StockTransfersComponent implements OnInit {
     }
     this.loading.set(true);
     this.formError.set(null);
-
-    this.transferService.create({
+    const payload = {
       date: v.date,
       fromGodownId: v.fromGodownId,
       toGodownId: v.toGodownId,
@@ -226,7 +252,11 @@ export class StockTransfersComponent implements OnInit {
         itemId: l.itemId,
         quantity: Number(l.quantity),
       })),
-    }).subscribe({
+    };
+    const req = this.editingId
+      ? this.transferService.update(this.editingId, payload)
+      : this.transferService.create(payload);
+    req.subscribe({
       next: () => {
         this.loading.set(false);
         this.close();
@@ -234,10 +264,18 @@ export class StockTransfersComponent implements OnInit {
       },
       error: (err) => {
         this.loading.set(false);
-        this.formError.set(err?.error?.errors?.[0] ?? 'Could not create stock transfer.');
+        this.formError.set(err?.error?.errors?.[0] ?? 'Could not save stock transfer.');
       },
     });
   }
 
-  close(): void { this.showForm.set(false); }
+  remove(t: StockTransferDto): void {
+    if (!confirm(`Delete transfer ${t.number}?`)) return;
+    this.transferService.delete(t.id).subscribe({
+      next: () => this.load(),
+      error: () => this.error.set('Could not delete transfer.'),
+    });
+  }
+
+  close(): void { this.showForm.set(false); this.editingId = null; }
 }

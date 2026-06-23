@@ -37,5 +37,7 @@ public interface IStockTransferService
     Task<IReadOnlyList<StockTransferDto>> GetAllAsync(CancellationToken ct = default);
     Task<StockTransferDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Result<StockTransferDto>> CreateAsync(SaveStockTransferRequest request, CancellationToken ct = default);
+    Task<Result<StockTransferDto>> UpdateAsync(Guid id, SaveStockTransferRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
     Task<Result<StockTransferDto>> CompleteAsync(Guid id, CancellationToken ct = default);
 }
