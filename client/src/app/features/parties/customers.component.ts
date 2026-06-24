@@ -1,13 +1,16 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CustomerService } from '../../core/services/customer.service';
 import { AccessService } from '../../core/services/access.service';
 import { CustomerDto, CustomerType, CustomerTypeLabels } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-customers',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -23,12 +26,13 @@ import { CustomerDto, CustomerType, CustomerTypeLabels } from '../../core/models
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search customers…" />
       <table class="table">
         <thead>
           <tr><th>Name</th><th>Type</th><th>Phone</th><th>Credit limit</th><th>Opening bal.</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
-          @for (c of customers(); track c.id) {
+          @for (c of filteredRows(); track c.id) {
             <tr>
               <td>{{ c.name }}@if (c.code) { <span class="badge badge-muted" style="margin-left:.4rem">{{ c.code }}</span> }</td>
               <td>{{ typeLabel(c.type) }}</td>
@@ -49,7 +53,7 @@ import { CustomerDto, CustomerType, CustomerTypeLabels } from '../../core/models
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No customers yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No customers yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -114,6 +118,8 @@ export class CustomersComponent implements OnInit {
   private service = inject(CustomerService);
 
   customers = signal<CustomerDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.customers(), this.searchTerm()));
   showForm = signal(false);
   loading = signal(false);
   error = signal<string | null>(null);
@@ -141,6 +147,8 @@ export class CustomersComponent implements OnInit {
     isActive: [true],
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void { this.load(); }
 
   typeLabel(t: CustomerType): string { return CustomerTypeLabels[t] ?? '—'; }

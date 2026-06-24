@@ -10,10 +10,13 @@ import {
   CustomerDto, ItemDto, QuotationDto, QuotationStatus, QuotationStatusLabels,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-quotations',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -34,12 +37,13 @@ import {
     </div>
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search quotations…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Customer</th><th>Valid until</th><th>Status</th><th>Total</th><th></th></tr>
         </thead>
         <tbody>
-          @for (q of quotations(); track q.id) {
+          @for (q of filteredRows(); track q.id) {
             <tr>
               <td>{{ q.number }}</td>
               <td>{{ q.date | date:'mediumDate' }}</td>
@@ -59,7 +63,7 @@ import {
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No quotations yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No quotations yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -157,6 +161,8 @@ export class QuotationsComponent implements OnInit {
   private itemService = inject(ItemService);
 
   quotations = signal<QuotationDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.quotations(), this.searchTerm()));
   customers = signal<CustomerDto[]>([]);
   items = signal<ItemDto[]>([]);
   ready = signal(false);
@@ -197,6 +203,8 @@ export class QuotationsComponent implements OnInit {
     return { subtotal, discount, taxRate, tax, total };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     forkJoin({

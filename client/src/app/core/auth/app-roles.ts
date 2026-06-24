@@ -35,10 +35,6 @@ export const ROUTE_ROLES: Record<string, readonly AppRoleName[]> = {
   'stock/adjustments': [O, M, K],
   'stock/transfers': [O, M],
 
-  'production/boms': [O, M, K],
-  'production/orders': [O, M, K],
-  'production/job-work': [O, M, S],
-
   'parties/customers': [O, M, S, A],
   'parties/suppliers': [O, M, K, A],
 
@@ -91,10 +87,6 @@ export const ROUTE_WRITE_ROLES: Record<string, readonly AppRoleName[]> = {
   'stock/adjustments': [O, M, K],
   'stock/transfers': [O, M],
 
-  'production/boms': [O, M, K],
-  'production/orders': [O, M, K],
-  'production/job-work': [O, M, S],
-
   'parties/customers': [O, M, S],
   'parties/suppliers': [O, M],
 
@@ -129,9 +121,6 @@ export const ROUTE_DELETE_ROLES: Record<string, readonly AppRoleName[]> = {
   'parties/customers': [O, M],
   'parties/suppliers': [O, M],
 
-  'production/boms': [O, M],
-  'production/job-work': [O, M],
-
   expenses: [O, M],
   'expenses/categories': [O, M],
 
@@ -150,10 +139,46 @@ export interface NavGroupDef {
   items: NavItemDef[];
 }
 
+export interface QuickLinkDef {
+  label: string;
+  actionLabel: string;
+  path: string;
+  routeKey: string;
+  icon: string;
+  primary?: boolean;
+  openNew?: boolean;
+}
+
+/** High-frequency daily actions — shown in sidebar and on dashboard. */
+export const APP_QUICK_LINKS: QuickLinkDef[] = [
+  { label: 'Invoices', actionLabel: 'New invoice', path: '/sales/invoices', routeKey: 'sales/invoices', icon: '↗', primary: true, openNew: true },
+  { label: 'Receipts', actionLabel: 'Record receipt', path: '/sales/receipts', routeKey: 'sales/receipts', icon: '₨', primary: true, openNew: true },
+  { label: 'Receivables', actionLabel: 'Receivables', path: '/sales/receivables', routeKey: 'sales/receivables', icon: '◷' },
+  { label: 'Customers', actionLabel: 'Customers', path: '/parties/customers', routeKey: 'parties/customers', icon: '☺' },
+];
+
 export const APP_NAV: NavGroupDef[] = [
   {
     title: 'Main',
     items: [{ label: 'Dashboard', path: '/dashboard', icon: '▦', routeKey: 'dashboard' }],
+  },
+  {
+    title: 'Daily sales',
+    items: [
+      { label: 'Invoices', path: '/sales/invoices', icon: '↗', routeKey: 'sales/invoices' },
+      { label: 'Receipts', path: '/sales/receipts', icon: '₨', routeKey: 'sales/receipts' },
+      { label: 'Receivables', path: '/sales/receivables', icon: '◷', routeKey: 'sales/receivables' },
+      { label: 'Customers', path: '/parties/customers', icon: '☺', routeKey: 'parties/customers' },
+    ],
+  },
+  {
+    title: 'Sales',
+    items: [
+      { label: 'Quotations', path: '/sales/quotations', icon: '✎', routeKey: 'sales/quotations' },
+      { label: 'Delivery challans', path: '/sales/challans', icon: '🚚', routeKey: 'sales/challans' },
+      { label: 'Returns', path: '/sales/returns', icon: '⟲', routeKey: 'sales/returns' },
+      { label: 'Customer ledger', path: '/sales/ledger', icon: '☰', routeKey: 'sales/ledger' },
+    ],
   },
   {
     title: 'Inventory',
@@ -167,41 +192,20 @@ export const APP_NAV: NavGroupDef[] = [
     ],
   },
   {
-    title: 'Production',
-    items: [
-      { label: 'Bill of materials', path: '/production/boms', icon: '⊞', routeKey: 'production/boms' },
-      { label: 'Production orders', path: '/production/orders', icon: '⚙', routeKey: 'production/orders' },
-      { label: 'Job work', path: '/production/job-work', icon: '⚒', routeKey: 'production/job-work' },
-    ],
-  },
-  {
     title: 'Parties',
     items: [
-      { label: 'Customers', path: '/parties/customers', icon: '☺', routeKey: 'parties/customers' },
       { label: 'Suppliers', path: '/parties/suppliers', icon: '⛬', routeKey: 'parties/suppliers' },
-    ],
-  },
-  {
-    title: 'Sales',
-    items: [
-      { label: 'Invoices', path: '/sales/invoices', icon: '↗', routeKey: 'sales/invoices' },
-      { label: 'Quotations', path: '/sales/quotations', icon: '✎', routeKey: 'sales/quotations' },
-      { label: 'Delivery challans', path: '/sales/challans', icon: '🚚', routeKey: 'sales/challans' },
-      { label: 'Receipts', path: '/sales/receipts', icon: '₨', routeKey: 'sales/receipts' },
-      { label: 'Returns', path: '/sales/returns', icon: '⟲', routeKey: 'sales/returns' },
-      { label: 'Receivables', path: '/sales/receivables', icon: '◷', routeKey: 'sales/receivables' },
-      { label: 'Customer ledger', path: '/sales/ledger', icon: '☰', routeKey: 'sales/ledger' },
     ],
   },
   {
     title: 'Purchasing',
     items: [
       { label: 'Purchase invoices', path: '/purchasing/invoices', icon: '↘', routeKey: 'purchasing/invoices' },
+      { label: 'Supplier payments', path: '/purchasing/payments', icon: '₨', routeKey: 'purchasing/payments' },
+      { label: 'Payables', path: '/purchasing/payables', icon: '◷', routeKey: 'purchasing/payables' },
       { label: 'Purchase orders', path: '/purchasing/orders', icon: '📋', routeKey: 'purchasing/orders' },
       { label: 'GRN', path: '/purchasing/grns', icon: '📦', routeKey: 'purchasing/grns' },
-      { label: 'Supplier payments', path: '/purchasing/payments', icon: '₨', routeKey: 'purchasing/payments' },
       { label: 'Purchase returns', path: '/purchasing/returns', icon: '⟲', routeKey: 'purchasing/returns' },
-      { label: 'Payables', path: '/purchasing/payables', icon: '◷', routeKey: 'purchasing/payables' },
       { label: 'Supplier ledger', path: '/purchasing/ledger', icon: '☰', routeKey: 'purchasing/ledger' },
     ],
   },

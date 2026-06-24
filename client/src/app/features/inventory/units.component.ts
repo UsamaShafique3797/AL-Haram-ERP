@@ -1,13 +1,16 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UnitService } from '../../core/services/unit.service';
 import { AccessService } from '../../core/services/access.service';
 import { UnitDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-units',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -23,10 +26,11 @@ import { UnitDto } from '../../core/models/domain.models';
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search units…" />
       <table class="table">
         <thead><tr><th>Name</th><th>Code</th><th>Status</th><th></th></tr></thead>
         <tbody>
-          @for (u of units(); track u.id) {
+          @for (u of filteredRows(); track u.id) {
             <tr>
               <td>{{ u.name }}</td>
               <td>{{ u.code }}</td>
@@ -44,7 +48,7 @@ import { UnitDto } from '../../core/models/domain.models';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="4" style="text-align:center;color:var(--muted)">No units yet.</td></tr>
+            <tr><td colspan="4" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No units yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -86,6 +90,8 @@ export class UnitsComponent implements OnInit {
   private service = inject(UnitService);
 
   units = signal<UnitDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.units(), this.searchTerm()));
   showForm = signal(false);
   loading = signal(false);
   error = signal<string | null>(null);
@@ -97,6 +103,8 @@ export class UnitsComponent implements OnInit {
     isActive: [true],
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void { this.load(); }
 
   load(): void {

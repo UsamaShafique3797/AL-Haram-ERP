@@ -48,21 +48,6 @@ export const routes: Routes = [
         loadComponent: () => import('./features/stock/stock-transfers.component').then((m) => m.StockTransfersComponent),
       },
       {
-        path: 'production/boms',
-        canActivate: [routeAccessGuard('production/boms')],
-        loadComponent: () => import('./features/production/boms.component').then((m) => m.BomsComponent),
-      },
-      {
-        path: 'production/orders',
-        canActivate: [routeAccessGuard('production/orders')],
-        loadComponent: () => import('./features/production/production-orders.component').then((m) => m.ProductionOrdersComponent),
-      },
-      {
-        path: 'production/job-work',
-        canActivate: [routeAccessGuard('production/job-work')],
-        loadComponent: () => import('./features/production/job-work.component').then((m) => m.JobWorkComponent),
-      },
-      {
         path: 'parties/customers',
         canActivate: [routeAccessGuard('parties/customers')],
         loadComponent: () => import('./features/parties/customers.component').then((m) => m.CustomersComponent),

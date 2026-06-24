@@ -1,15 +1,17 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { CustomerService } from '../../core/services/customer.service';
 import { CustomerLedgerService } from '../../core/services/customer-ledger.service';
 import { CustomerDto, CustomerLedgerDto } from '../../core/models/domain.models';
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 
 @Component({
   selector: 'app-ledger',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe],
+  imports: [CommonModule, FormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -52,12 +54,13 @@ import { CustomerDto, CustomerLedgerDto } from '../../core/models/domain.models'
 
     @if (ledger(); as l) {
       <div class="card" style="overflow:hidden">
+        <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search ledger…" />
         <table class="table">
           <thead>
             <tr><th>Date</th><th>Type</th><th>Document</th><th>Reference</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr>
           </thead>
           <tbody>
-            @for (e of l.entries; track $index) {
+            @for (e of filteredEntries(); track $index) {
               <tr>
                 <td>{{ e.date | date:'mediumDate' }}</td>
                 <td>{{ e.documentType }}</td>
@@ -70,7 +73,7 @@ import { CustomerDto, CustomerLedgerDto } from '../../core/models/domain.models'
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="7" style="text-align:center;color:var(--muted)">No movement yet.</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ gridEmptyMessage(searchTerm(), 'No movement yet.') }}</td></tr>
             }
           </tbody>
         </table>
@@ -86,12 +89,20 @@ import { CustomerDto, CustomerLedgerDto } from '../../core/models/domain.models'
   `],
 })
 export class LedgerComponent implements OnInit {
+  readonly gridEmptyMessage = gridEmptyMessage;
+
   private customerService = inject(CustomerService);
   private ledgerService = inject(CustomerLedgerService);
   private route = inject(ActivatedRoute);
 
   customers = signal<CustomerDto[]>([]);
   ledger = signal<CustomerLedgerDto | null>(null);
+  searchTerm = signal('');
+  filteredEntries = computed(() => {
+    const l = this.ledger();
+    if (!l) return [];
+    return filterByGridSearch(l.entries, this.searchTerm());
+  });
   loading = signal(false);
   customerId = '';
 

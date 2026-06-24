@@ -8,10 +8,12 @@ import { GodownDto, ItemDto, StockLevelDto } from '../../core/models/domain.mode
 
 type FormMode = 'opening' | 'edit';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 @Component({
   selector: 'app-stock-levels',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -33,12 +35,13 @@ type FormMode = 'opening' | 'edit';
     </div>
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search stock levels…" />
       <table class="table">
         <thead>
           <tr><th>Item</th><th>Godown</th><th>Quantity</th><th>Avg cost</th><th>Stock value</th><th>Reorder</th><th style="text-align:right">Actions</th></tr>
         </thead>
         <tbody>
-          @for (s of levels(); track s.itemId + s.godownId) {
+          @for (s of filteredRows(); track s.itemId + s.godownId) {
             <tr>
               <td>{{ s.itemName }} <span class="badge badge-muted" style="margin-left:.3rem">{{ s.itemCode }}</span>
                 @if (s.isLowStock) { <span class="badge badge-low" style="margin-left:.3rem">Low</span> }
@@ -60,7 +63,7 @@ type FormMode = 'opening' | 'edit';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No stock yet. Add opening stock to begin.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No stock yet. Add opening stock to begin.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -144,6 +147,8 @@ export class StockLevelsComponent implements OnInit {
   private godownService = inject(GodownService);
 
   levels = signal<StockLevelDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.levels(), this.searchTerm()));
   items = signal<ItemDto[]>([]);
   godowns = signal<GodownDto[]>([]);
   ready = signal(false);
@@ -170,6 +175,8 @@ export class StockLevelsComponent implements OnInit {
     notes: [''],
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     this.itemService.getAll().subscribe((i) => this.items.set(i.filter((x) => x.trackInventory)));

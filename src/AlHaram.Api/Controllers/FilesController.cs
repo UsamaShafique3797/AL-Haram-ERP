@@ -9,8 +9,13 @@ namespace AlHaram.Api.Controllers;
 public class FilesController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;
+    private readonly IConfiguration _config;
 
-    public FilesController(IWebHostEnvironment env) => _env = env;
+    public FilesController(IWebHostEnvironment env, IConfiguration config)
+    {
+        _env = env;
+        _config = config;
+    }
 
     [HttpPost("upload")]
     [RequestSizeLimit(10 * 1024 * 1024)]
@@ -24,7 +29,7 @@ public class FilesController : ControllerBase
         if (!allowed.Contains(ext))
             return BadRequest(new { errors = new[] { "File type not allowed." } });
 
-        var uploadsDir = Path.Combine(_env.ContentRootPath, "uploads");
+        var uploadsDir = Path.Combine(GetStorageRoot(), "uploads");
         Directory.CreateDirectory(uploadsDir);
 
         var fileName = $"{Guid.NewGuid():N}{ext}";
@@ -40,7 +45,11 @@ public class FilesController : ControllerBase
     [AllowAnonymous]
     public IActionResult GetFile(string filePath)
     {
-        var fullPath = Path.Combine(_env.ContentRootPath, filePath.Replace('/', Path.DirectorySeparatorChar));
+        var root = GetStorageRoot();
+        var fullPath = Path.GetFullPath(Path.Combine(root, filePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (!fullPath.StartsWith(Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
+            return BadRequest();
+
         if (!System.IO.File.Exists(fullPath))
             return NotFound();
 
@@ -55,5 +64,11 @@ public class FilesController : ControllerBase
         };
 
         return PhysicalFile(fullPath, contentType);
+    }
+
+    private string GetStorageRoot()
+    {
+        var configured = _config["Storage:RootPath"]?.Trim();
+        return string.IsNullOrEmpty(configured) ? _env.ContentRootPath : configured;
     }
 }

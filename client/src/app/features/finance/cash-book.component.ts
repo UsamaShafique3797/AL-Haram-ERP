@@ -1,13 +1,15 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CashBookService } from '../../core/services/cash-book.service';
 import { CashBookDto } from '../../core/models/domain.models';
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 
 @Component({
   selector: 'app-cash-book',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe],
+  imports: [CommonModule, FormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -29,7 +31,13 @@ import { CashBookDto } from '../../core/models/domain.models';
     @if (error()) { <div class="alert alert-error no-print">{{ error() }}</div> }
     @if (loading()) { <div class="card card-pad">Loading…</div> }
 
-    @for (book of books(); track book.paymentAccountId) {
+    @if (books().length) {
+      <div class="card card-pad no-print" style="margin-bottom:1rem">
+        <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search cash book…" />
+      </div>
+    }
+
+    @for (book of filteredBooks(); track book.paymentAccountId) {
       <div class="card card-pad book-block" style="margin-bottom:1rem">
         <div class="row" style="align-items:baseline;margin-bottom:.5rem">
           <h3>{{ book.paymentAccountName }} <span class="badge badge-muted">{{ book.accountType }}</span></h3>
@@ -56,7 +64,7 @@ import { CashBookDto } from '../../core/models/domain.models';
                   <td class="num">{{ money(e.balance) }}</td>
                 </tr>
               } @empty {
-                <tr><td colspan="7" style="text-align:center;color:var(--muted)">No transactions in this period.</td></tr>
+                <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ gridEmptyMessage(searchTerm(), 'No transactions in this period.') }}</td></tr>
               }
             </tbody>
           </table>
@@ -75,9 +83,24 @@ import { CashBookDto } from '../../core/models/domain.models';
   `],
 })
 export class CashBookComponent implements OnInit {
+  readonly gridEmptyMessage = gridEmptyMessage;
+
   private service = inject(CashBookService);
 
   books = signal<CashBookDto[]>([]);
+  searchTerm = signal('');
+  filteredBooks = computed(() => {
+    const t = this.searchTerm();
+    const books = this.books();
+    if (!t.trim()) return books;
+    return books
+      .map((b) => ({ ...b, entries: filterByGridSearch(b.entries, t) }))
+      .filter(
+        (b) =>
+          b.entries.length > 0 ||
+          filterByGridSearch([{ paymentAccountName: b.paymentAccountName, accountType: b.accountType }], t).length,
+      );
+  });
   loading = signal(false);
   error = signal<string | null>(null);
   from = '';

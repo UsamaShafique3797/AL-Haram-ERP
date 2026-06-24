@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   DeliveryChallanDto, SaveDeliveryChallanRequest, QuotationDto, SaveQuotationRequest,
-  SalesInvoiceDto, SaveSalesInvoiceRequest, JobWorkOrderDto, SaveJobWorkOrderRequest,
+  SalesInvoiceDto, SaveSalesInvoiceRequest,
 } from '../models/domain.models';
 
 @Injectable({ providedIn: 'root' })
@@ -56,31 +56,5 @@ export class QuotationService {
 
   convertToInvoice(id: string, req: SaveSalesInvoiceRequest): Observable<SalesInvoiceDto> {
     return this.http.post<SalesInvoiceDto>(`${this.api}/${id}/convert`, req);
-  }
-}
-
-@Injectable({ providedIn: 'root' })
-export class JobWorkOrderService {
-  private readonly api = `${environment.apiUrl}/job-work-orders`;
-  private http = inject(HttpClient);
-
-  getAll(): Observable<JobWorkOrderDto[]> {
-    return this.http.get<JobWorkOrderDto[]>(this.api);
-  }
-
-  getById(id: string): Observable<JobWorkOrderDto> {
-    return this.http.get<JobWorkOrderDto>(`${this.api}/${id}`);
-  }
-
-  create(req: SaveJobWorkOrderRequest): Observable<JobWorkOrderDto> {
-    return this.http.post<JobWorkOrderDto>(this.api, req);
-  }
-
-  update(id: string, req: SaveJobWorkOrderRequest): Observable<JobWorkOrderDto> {
-    return this.http.put<JobWorkOrderDto>(`${this.api}/${id}`, req);
-  }
-
-  delete(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.api}/${id}`);
   }
 }

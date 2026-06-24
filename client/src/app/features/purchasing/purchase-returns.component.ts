@@ -8,10 +8,13 @@ import {
   PurchaseInvoiceDto, PurchaseInvoiceLineDto, PurchaseReturnDto,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-purchase-returns',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -27,12 +30,13 @@ import {
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search purchase returns…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Invoice</th><th>Supplier</th><th>Lines</th><th class="num">Total</th><th>Reason</th></tr>
         </thead>
         <tbody>
-          @for (r of returns(); track r.id) {
+          @for (r of filteredRows(); track r.id) {
             <tr>
               <td>{{ r.number }}</td>
               <td>{{ r.date | date:'mediumDate' }}</td>
@@ -43,7 +47,7 @@ import {
               <td>{{ r.reason || '—' }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No returns yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No returns yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -126,6 +130,8 @@ export class PurchaseReturnsComponent implements OnInit {
   private returnService = inject(PurchaseReturnService);
 
   returns = signal<PurchaseReturnDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.returns(), this.searchTerm()));
   invoices = signal<PurchaseInvoiceDto[]>([]);
   selectedInvoice = signal<PurchaseInvoiceDto | null>(null);
 
@@ -159,6 +165,8 @@ export class PurchaseReturnsComponent implements OnInit {
     return { subtotal, tax, total: subtotal + tax };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     this.invoiceService.getAll().subscribe((list) => this.invoices.set(list));

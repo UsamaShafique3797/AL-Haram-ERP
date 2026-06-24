@@ -18,6 +18,8 @@ npm-debug.log*
 # Env / secrets
 appsettings.*.local.json
 .env
+publish/
+deploy/azure/.deployment-secrets.local.json
 
 # OS
 Thumbs.db

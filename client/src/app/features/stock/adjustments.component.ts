@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { StockService } from '../../core/services/stock.service';
@@ -7,10 +7,13 @@ import { GodownService } from '../../core/services/godown.service';
 import { AccessService } from '../../core/services/access.service';
 import { AdjustmentDirection, GodownDto, ItemDto, StockAdjustmentDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-adjustments',
   standalone: true,
-  imports: [ReactiveFormsModule, SlicePipe],
+  imports: [ReactiveFormsModule, SlicePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -26,10 +29,11 @@ import { AdjustmentDirection, GodownDto, ItemDto, StockAdjustmentDto } from '../
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search adjustments…" />
       <table class="table">
         <thead><tr><th>Number</th><th>Date</th><th>Godown</th><th>Lines</th><th>Reason</th></tr></thead>
         <tbody>
-          @for (a of adjustments(); track a.id) {
+          @for (a of filteredRows(); track a.id) {
             <tr>
               <td>{{ a.number }}</td>
               <td>{{ a.date | slice:0:10 }}</td>
@@ -38,7 +42,7 @@ import { AdjustmentDirection, GodownDto, ItemDto, StockAdjustmentDto } from '../
               <td>{{ a.reason || '—' }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="5" style="text-align:center;color:var(--muted)">No adjustments yet.</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No adjustments yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -118,6 +122,8 @@ export class AdjustmentsComponent implements OnInit {
   private godownService = inject(GodownService);
 
   adjustments = signal<StockAdjustmentDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.adjustments(), this.searchTerm()));
   items = signal<ItemDto[]>([]);
   godowns = signal<GodownDto[]>([]);
   ready = signal(false);
@@ -137,6 +143,8 @@ export class AdjustmentsComponent implements OnInit {
 
   get lines(): FormArray { return this.form.get('lines') as FormArray; }
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     this.itemService.getAll().subscribe((i) => this.items.set(i.filter((x) => x.trackInventory)));

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -10,10 +10,13 @@ import { DeliveryChallanService } from '../../core/services/remaining-features.s
 import { AccessService } from '../../core/services/access.service';
 import { CustomerDto, DeliveryChallanDto, GodownDto, ItemDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-delivery-challans',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -29,12 +32,13 @@ import { CustomerDto, DeliveryChallanDto, GodownDto, ItemDto } from '../../core/
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search delivery challans…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Customer</th><th>Godown</th><th>Lines</th><th></th></tr>
         </thead>
         <tbody>
-          @for (c of challans(); track c.id) {
+          @for (c of filteredRows(); track c.id) {
             <tr>
               <td><a [routerLink]="['/sales/challans', c.id, 'print']">{{ c.number }}</a></td>
               <td>{{ c.date | date:'mediumDate' }}</td>
@@ -46,7 +50,7 @@ import { CustomerDto, DeliveryChallanDto, GodownDto, ItemDto } from '../../core/
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="6" style="text-align:center;color:var(--muted)">No delivery challans yet.</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No delivery challans yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -140,6 +144,8 @@ export class DeliveryChallansComponent implements OnInit {
   private router = inject(Router);
 
   challans = signal<DeliveryChallanDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.challans(), this.searchTerm()));
   customers = signal<CustomerDto[]>([]);
   godowns = signal<GodownDto[]>([]);
   items = signal<ItemDto[]>([]);
@@ -161,6 +167,8 @@ export class DeliveryChallansComponent implements OnInit {
 
   get lines(): FormArray { return this.form.get('lines') as FormArray; }
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     forkJoin({

@@ -105,6 +105,15 @@ import { DeliveryChallanDto } from '../../core/models/domain.models';
     .notes { margin-top: 1.25rem; padding-top: .75rem; border-top: 1px dashed #ced4da; font-size: .85rem; }
     .ftr { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ced4da;
       display: flex; justify-content: space-between; font-size: .8rem; color: #6c757d; }
+    @media (max-width: 700px) {
+      .invoice-paper { padding: 1rem; border-radius: 0; overflow-x: auto; }
+      .hdr { flex-direction: column; gap: 1rem; }
+      .meta { text-align: left; }
+      .brand-row { align-items: flex-start; }
+      .parties { flex-direction: column; gap: .75rem; }
+      .ftr { flex-direction: column; gap: .35rem; }
+      table.lines { min-width: 480px; }
+    }
     @media print {
       :host { background: #fff; }
       .no-print { display: none !important; }

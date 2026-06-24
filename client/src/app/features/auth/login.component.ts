@@ -57,6 +57,12 @@ import { CompanyContextService } from '../../core/services/company-context.servi
       background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
     .muted { color: var(--ink-soft); font-size: .8rem; }
     .hint { margin-top: 1.25rem; text-align: center; font-size: .78rem; color: var(--muted); }
+    @media (max-width: 480px) {
+      .login-wrap { min-height: 100dvh; padding: .75rem; }
+      .login-card { padding: 1.25rem; }
+      .brand { flex-direction: column; text-align: center; gap: .65rem; }
+      .brand h2 { font-size: 1.05rem; word-break: break-word; }
+    }
   `],
 })
 export class LoginComponent {

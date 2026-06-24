@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ReportService } from '../../core/services/report.service';
@@ -6,10 +6,13 @@ import { StockValuationReportDto } from '../../core/models/domain.models';
 import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.component';
 import { downloadCsv } from '../../core/utils/csv-export';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-stock-valuation',
   standalone: true,
-  imports: [CommonModule, DatePipe, RouterLink, CompanyPrintHeaderComponent],
+  imports: [CommonModule, DatePipe, RouterLink, CompanyPrintHeaderComponent, GridSearchBarComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -36,6 +39,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
       </div>
 
       <div class="card" style="overflow:hidden">
+        <app-grid-search-bar class="no-print" [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search stock…" />
         <table class="table">
           <thead>
             <tr>
@@ -44,7 +48,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
             </tr>
           </thead>
           <tbody>
-            @for (l of r.lines; track l.itemId) {
+            @for (l of filteredLines(); track l.itemId) {
               <tr>
                 <td>{{ l.itemCode }}</td>
                 <td>{{ l.itemName }}</td>
@@ -55,7 +59,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
                 <td class="num">{{ money(l.stockValue) }}</td>
               </tr>
             } @empty {
-              <tr><td colspan="7" style="text-align:center;color:var(--muted)">No stock on hand.</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ gridEmptyMessage(searchTerm(), 'No stock on hand.') }}</td></tr>
             }
           </tbody>
           @if (r.lines.length) {
@@ -81,9 +85,17 @@ import { downloadCsv } from '../../core/utils/csv-export';
   `],
 })
 export class StockValuationComponent implements OnInit {
+  readonly gridEmptyMessage = gridEmptyMessage;
+
   private service = inject(ReportService);
 
   report = signal<StockValuationReportDto | null>(null);
+  searchTerm = signal('');
+  filteredLines = computed(() => {
+    const r = this.report();
+    if (!r) return [];
+    return filterByGridSearch(r.lines, this.searchTerm());
+  });
   loading = signal(false);
   error = signal<string | null>(null);
 

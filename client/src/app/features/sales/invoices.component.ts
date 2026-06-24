@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe, DecimalPipe } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CustomerService } from '../../core/services/customer.service';
 import { CompanyContextService } from '../../core/services/company-context.service';
@@ -15,10 +15,12 @@ import {
   CustomerDto, CustomerType, GodownDto, ItemDto, PaymentAccountDto, SalesInvoiceDto,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 @Component({
   selector: 'app-invoices',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, DecimalPipe, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, DecimalPipe, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -32,6 +34,14 @@ import {
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
+    @if (whatsAppInfo()) {
+      <div class="alert wa-info">
+        <div>{{ whatsAppInfo() }}</div>
+        @if (whatsAppChatUrl()) {
+          <a class="btn btn-primary btn-sm wa-open-btn" [href]="whatsAppChatUrl()" target="_blank" rel="noopener noreferrer">Open WhatsApp</a>
+        }
+      </div>
+    }
 
     <div class="row" style="margin-bottom:1rem">
       <div class="card card-pad" style="flex:1"><span class="kpi-label">Invoices</span><div class="kpi">{{ invoices().length }}</div></div>
@@ -40,12 +50,13 @@ import {
     </div>
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search invoices…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th><th>Balance</th><th></th></tr>
         </thead>
         <tbody>
-          @for (i of invoices(); track i.id) {
+          @for (i of filteredRows(); track i.id) {
             <tr>
               <td><a [routerLink]="['/sales/invoices', i.id, 'print']">{{ i.number }}</a></td>
               <td>{{ i.date | date:'mediumDate' }}</td>
@@ -65,7 +76,7 @@ import {
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No invoices yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No invoices yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -147,7 +158,7 @@ import {
 
               <label class="check-row">
                 <input type="checkbox" formControlName="sendWhatsApp" />
-                After posting, download PDF and open WhatsApp to customer
+                After posting, send invoice on WhatsApp (PDF attached when possible)
               </label>
 
               <div class="totals card-pad" style="background:#f7f8fa;border-radius:8px;margin-top:.5rem">
@@ -216,6 +227,8 @@ import {
     .customer-modal { z-index: 60; place-items: center; }
     .customer-modal .modal { max-width: 420px; }
     .check-row { display: flex; align-items: center; gap: .5rem; margin-top: .75rem; font-size: .9rem; }
+    .wa-info { background: #eef8ef; color: #1e6b3a; border: 1px solid #b7e4c7; margin-bottom: 1rem; }
+    .wa-open-btn { margin-top: .65rem; }
   `],
 })
 export class InvoicesComponent implements OnInit {
@@ -229,8 +242,12 @@ export class InvoicesComponent implements OnInit {
   private whatsAppService = inject(WhatsAppService);
   private companyCtx = inject(CompanyContextService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private openNewOnLoad = false;
 
   invoices = signal<SalesInvoiceDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.invoices(), this.searchTerm()));
   customers = signal<CustomerDto[]>([]);
   godowns = signal<GodownDto[]>([]);
   items = signal<ItemDto[]>([]);
@@ -242,6 +259,8 @@ export class InvoicesComponent implements OnInit {
   loading = signal(false);
   customerSaving = signal(false);
   error = signal<string | null>(null);
+  whatsAppInfo = signal<string | null>(null);
+  whatsAppChatUrl = signal<string | null>(null);
   formError = signal<string | null>(null);
   customerFormError = signal<string | null>(null);
   whatsAppSendingId = signal<string | null>(null);
@@ -290,7 +309,10 @@ export class InvoicesComponent implements OnInit {
     return { subtotal, discount, taxRate, tax, total, paid, balance: total - paid };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
+    this.openNewOnLoad = this.route.snapshot.queryParamMap.get('new') === '1';
     this.load();
     forkJoin({
       customers: this.customerService.getAll(),
@@ -303,6 +325,11 @@ export class InvoicesComponent implements OnInit {
       this.items.set(items.filter((i) => i.isActive));
       this.paymentAccounts.set(accounts.filter((a) => a.isActive));
       this.ready.set(true);
+      if (this.openNewOnLoad && this.access.canWrite('sales/invoices')) {
+        this.openNewOnLoad = false;
+        this.openNew();
+        void this.router.navigate([], { relativeTo: this.route, queryParams: { new: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      }
     });
 
     this.form.valueChanges.subscribe(() => this.formTick.update((n) => n + 1));
@@ -400,8 +427,9 @@ export class InvoicesComponent implements OnInit {
       next: async (saved) => {
         if (sendWa) {
           const customer = this.customers().find((c) => c.id === saved.customerId);
-          const err = await this.whatsAppService.shareInvoicePdf(saved, customer?.phone, this.companyCtx.name());
-          if (err) this.formError.set(err);
+          this.applyWhatsAppResult(
+            await this.whatsAppService.shareInvoicePdf(saved, customer?.phone, this.companyCtx.name()),
+          );
         }
         this.loading.set(false);
         this.close();
@@ -418,15 +446,27 @@ export class InvoicesComponent implements OnInit {
   async shareWhatsApp(invoice: SalesInvoiceDto): Promise<void> {
     this.whatsAppSendingId.set(invoice.id);
     this.error.set(null);
+    this.whatsAppInfo.set(null);
+    this.whatsAppChatUrl.set(null);
     const customer = this.customers().find((c) => c.id === invoice.customerId);
     try {
-      const err = await this.whatsAppService.shareInvoicePdf(invoice, customer?.phone, this.companyCtx.name());
-      if (err) this.error.set(err);
+      this.applyWhatsAppResult(
+        await this.whatsAppService.shareInvoicePdf(invoice, customer?.phone, this.companyCtx.name()),
+      );
     } catch {
-      this.error.set('Could not download invoice PDF.');
+      this.error.set('Could not prepare invoice for WhatsApp.');
     } finally {
       this.whatsAppSendingId.set(null);
     }
+  }
+
+  private applyWhatsAppResult(result: { error: string | null; chatUrl?: string; info?: string }): void {
+    if (result.error) {
+      this.error.set(result.error);
+      return;
+    }
+    if (result.info) this.whatsAppInfo.set(result.info);
+    if (result.chatUrl) this.whatsAppChatUrl.set(result.chatUrl);
   }
 
   close(): void { this.showForm.set(false); this.closeQuickCustomer(); }

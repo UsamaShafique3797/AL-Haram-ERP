@@ -10,7 +10,6 @@ using AlHaram.Application.Godowns;
 using AlHaram.Application.Items;
 using AlHaram.Application.Purchasing;
 using AlHaram.Application.Sales;
-using AlHaram.Application.Production;
 using AlHaram.Application.Stock;
 using AlHaram.Application.Suppliers;
 using AlHaram.Application.Messaging;
@@ -113,11 +112,6 @@ public static class DependencyInjection
         services.AddScoped<IProfitLossService, ProfitLossService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IDashboardService, DashboardService>();
-
-        // Phase 5 — Production / Fabrication
-        services.AddScoped<IBomService, BomService>();
-        services.AddScoped<IProductionOrderService, ProductionOrderService>();
-        services.AddScoped<IJobWorkOrderService, JobWorkOrderService>();
 
         // Remaining features
         services.AddScoped<IAuditLogService, AuditLogService>();

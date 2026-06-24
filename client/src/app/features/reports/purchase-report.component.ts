@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -7,10 +7,13 @@ import { PurchaseReportDto } from '../../core/models/domain.models';
 import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.component';
 import { downloadCsv } from '../../core/utils/csv-export';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-purchase-report',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, RouterLink, CompanyPrintHeaderComponent],
+  imports: [CommonModule, FormsModule, DatePipe, RouterLink, CompanyPrintHeaderComponent, GridSearchBarComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -45,6 +48,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
       </div>
 
       <div class="card" style="overflow:hidden">
+        <app-grid-search-bar class="no-print" [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search purchases…" />
         <table class="table">
           <thead>
             <tr>
@@ -54,7 +58,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
             </tr>
           </thead>
           <tbody>
-            @for (l of r.lines; track l.invoiceId) {
+            @for (l of filteredLines(); track l.invoiceId) {
               <tr>
                 <td>{{ l.number }}</td>
                 <td>{{ l.date | date:'mediumDate' }}</td>
@@ -67,7 +71,7 @@ import { downloadCsv } from '../../core/utils/csv-export';
                 <td class="num">{{ money(l.balance) }}</td>
               </tr>
             } @empty {
-              <tr><td colspan="9" style="text-align:center;color:var(--muted)">No purchases in this period.</td></tr>
+              <tr><td colspan="9" style="text-align:center;color:var(--muted)">{{ gridEmptyMessage(searchTerm(), 'No purchases in this period.') }}</td></tr>
             }
           </tbody>
           @if (r.lines.length) {
@@ -94,9 +98,17 @@ import { downloadCsv } from '../../core/utils/csv-export';
   `],
 })
 export class PurchaseReportComponent implements OnInit {
+  readonly gridEmptyMessage = gridEmptyMessage;
+
   private service = inject(ReportService);
 
   report = signal<PurchaseReportDto | null>(null);
+  searchTerm = signal('');
+  filteredLines = computed(() => {
+    const r = this.report();
+    if (!r) return [];
+    return filterByGridSearch(r.lines, this.searchTerm());
+  });
   loading = signal(false);
   error = signal<string | null>(null);
 

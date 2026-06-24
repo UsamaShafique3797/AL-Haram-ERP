@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -6,10 +6,13 @@ import { ReportService } from '../../core/services/report.service';
 import { ExpenseReportDto } from '../../core/models/domain.models';
 import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.component';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-expense-report',
   standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe, RouterLink, CompanyPrintHeaderComponent],
+  imports: [CommonModule, FormsModule, DatePipe, RouterLink, CompanyPrintHeaderComponent, GridSearchBarComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -45,10 +48,11 @@ import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.c
       @if (r.byCategory.length) {
         <div class="card card-pad" style="margin-bottom:1rem">
           <h3>By category</h3>
+          <app-grid-search-bar class="no-print" [value]="categorySearchTerm()" (valueChange)="categorySearchTerm.set($event)" placeholder="Search categories…" />
           <table class="table">
             <thead><tr><th>Category</th><th class="num">Amount</th></tr></thead>
             <tbody>
-              @for (c of r.byCategory; track c.name) {
+              @for (c of filteredByCategory(); track c.name) {
                 <tr><td>{{ c.name }}</td><td class="num">{{ money(c.amount) }}</td></tr>
               }
             </tbody>
@@ -57,12 +61,13 @@ import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.c
       }
 
       <div class="card" style="overflow:hidden">
+        <app-grid-search-bar class="no-print" [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search expenses…" />
         <table class="table">
           <thead>
             <tr><th>Number</th><th>Date</th><th>Category</th><th>Account</th><th class="num">Amount</th><th>Notes</th></tr>
           </thead>
           <tbody>
-            @for (l of r.lines; track l.expenseId) {
+            @for (l of filteredLines(); track l.expenseId) {
               <tr>
                 <td>{{ l.number }}</td>
                 <td>{{ l.date | date:'mediumDate' }}</td>
@@ -72,7 +77,7 @@ import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.c
                 <td>{{ l.notes || '—' }}</td>
               </tr>
             } @empty {
-              <tr><td colspan="6" style="text-align:center;color:var(--muted)">No expenses in this period.</td></tr>
+              <tr><td colspan="6" style="text-align:center;color:var(--muted)">{{ gridEmptyMessage(searchTerm(), 'No expenses in this period.') }}</td></tr>
             }
           </tbody>
           @if (r.lines.length) {
@@ -95,9 +100,23 @@ import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.c
   `],
 })
 export class ExpenseReportComponent implements OnInit {
+  readonly gridEmptyMessage = gridEmptyMessage;
+
   private service = inject(ReportService);
 
   report = signal<ExpenseReportDto | null>(null);
+  searchTerm = signal('');
+  categorySearchTerm = signal('');
+  filteredLines = computed(() => {
+    const r = this.report();
+    if (!r) return [];
+    return filterByGridSearch(r.lines, this.searchTerm());
+  });
+  filteredByCategory = computed(() => {
+    const r = this.report();
+    if (!r) return [];
+    return filterByGridSearch(r.byCategory, this.categorySearchTerm());
+  });
   loading = signal(false);
   error = signal<string | null>(null);
 

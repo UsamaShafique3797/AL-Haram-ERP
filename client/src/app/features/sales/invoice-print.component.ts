@@ -22,10 +22,13 @@ import { SalesInvoiceDto } from '../../core/models/domain.models';
     </div>
 
     @if (whatsAppMessage()) {
-      <div class="alert no-print alert-error" style="margin-bottom:1rem">{{ whatsAppMessage() }}</div>
+      <div class="alert no-print" [class.alert-error]="whatsAppIsError()" [class.wa-info]="!whatsAppIsError()" style="margin-bottom:1rem">{{ whatsAppMessage() }}</div>
     }
-    @if (whatsAppHint()) {
-      <div class="alert no-print" style="margin-bottom:1rem;background:#f0f9ff;color:#026aa2;font-size:.85rem">{{ whatsAppHint() }}</div>
+    @if (whatsAppChatUrl()) {
+      <div class="alert no-print wa-info" style="margin-bottom:1rem">
+        <div>{{ whatsAppInfo() }}</div>
+        <a class="btn btn-primary btn-sm wa-open-btn" [href]="whatsAppChatUrl()" target="_blank" rel="noopener noreferrer">Open WhatsApp</a>
+      </div>
     }
 
     @if (invoice(); as i) {
@@ -142,11 +145,24 @@ import { SalesInvoiceDto } from '../../core/models/domain.models';
     .ftr { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ced4da;
       display: flex; justify-content: space-between; font-size: .8rem; color: #6c757d; }
 
+    @media (max-width: 700px) {
+      .invoice-paper { padding: 1rem; border-radius: 0; overflow-x: auto; }
+      .hdr { flex-direction: column; gap: 1rem; }
+      .meta { text-align: left; }
+      .brand-row { align-items: flex-start; }
+      .parties { flex-direction: column; gap: .75rem; }
+      .ftr { flex-direction: column; gap: .35rem; }
+      table.lines { min-width: 520px; }
+    }
+
     @media print {
       :host { background: #fff; }
       .no-print { display: none !important; }
       .invoice-paper { box-shadow: none; padding: 0; max-width: 100%; }
     }
+
+    .wa-info { background: #eef8ef; color: #1e6b3a; border: 1px solid #b7e4c7; }
+    .wa-open-btn { margin-top: .65rem; }
   `],
 })
 export class InvoicePrintComponent implements OnInit {
@@ -161,9 +177,9 @@ export class InvoicePrintComponent implements OnInit {
   loaded = signal(false);
   whatsAppSending = signal(false);
   whatsAppMessage = signal<string | null>(null);
-  whatsAppHint = signal<string | null>(
-    'Free WhatsApp: PDF downloads automatically, chat opens — attach the PDF and tap Send.',
-  );
+  whatsAppIsError = signal(false);
+  whatsAppInfo = signal<string | null>(null);
+  whatsAppChatUrl = signal<string | null>(null);
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -195,15 +211,29 @@ export class InvoicePrintComponent implements OnInit {
     if (!i) return;
     this.whatsAppSending.set(true);
     this.whatsAppMessage.set(null);
+    this.whatsAppIsError.set(false);
+    this.whatsAppInfo.set(null);
+    this.whatsAppChatUrl.set(null);
     try {
-      const err = await this.whatsAppService.shareInvoicePdf(
+      const result = await this.whatsAppService.shareInvoicePdf(
         i,
         this.customerPhone(),
         this.companyCtx.name(),
       );
-      if (err) this.whatsAppMessage.set(err);
+      if (result.error) {
+        this.whatsAppMessage.set(result.error);
+        this.whatsAppIsError.set(true);
+      } else if (result.info) {
+        this.whatsAppMessage.set(result.info);
+        if (result.chatUrl) {
+          this.whatsAppInfo.set(result.info);
+          this.whatsAppChatUrl.set(result.chatUrl);
+          this.whatsAppMessage.set(null);
+        }
+      }
     } catch {
-      this.whatsAppMessage.set('Could not download invoice PDF.');
+      this.whatsAppMessage.set('Could not prepare invoice for WhatsApp.');
+      this.whatsAppIsError.set(true);
     } finally {
       this.whatsAppSending.set(false);
     }

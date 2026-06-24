@@ -6,10 +6,13 @@ import { SalesReturnService } from '../../core/services/sales-return.service';
 import { AccessService } from '../../core/services/access.service';
 import { SalesInvoiceDto, SalesInvoiceLineDto, SalesReturnDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-returns',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -25,12 +28,13 @@ import { SalesInvoiceDto, SalesInvoiceLineDto, SalesReturnDto } from '../../core
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search returns…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Invoice</th><th>Customer</th><th>Lines</th><th class="num">Total</th><th>Reason</th></tr>
         </thead>
         <tbody>
-          @for (r of returns(); track r.id) {
+          @for (r of filteredRows(); track r.id) {
             <tr>
               <td>{{ r.number }}</td>
               <td>{{ r.date | date:'mediumDate' }}</td>
@@ -41,7 +45,7 @@ import { SalesInvoiceDto, SalesInvoiceLineDto, SalesReturnDto } from '../../core
               <td>{{ r.reason || '—' }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No returns yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No returns yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -124,6 +128,8 @@ export class ReturnsComponent implements OnInit {
   private returnService = inject(SalesReturnService);
 
   returns = signal<SalesReturnDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.returns(), this.searchTerm()));
   invoices = signal<SalesInvoiceDto[]>([]);
   selectedInvoice = signal<SalesInvoiceDto | null>(null);
 
@@ -158,6 +164,8 @@ export class ReturnsComponent implements OnInit {
     return { subtotal, tax, total: subtotal + tax };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     this.invoiceService.getAll().subscribe((list) => this.invoices.set(list));

@@ -3,12 +3,14 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AgeingService } from '../../core/services/report.service';
 import { PayableAgeingDto } from '../../core/models/domain.models';
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.component';
 
 @Component({
   selector: 'app-payables-ageing',
   standalone: true,
-  imports: [CommonModule, RouterLink, CompanyPrintHeaderComponent],
+  imports: [CommonModule, RouterLink, CompanyPrintHeaderComponent, GridSearchBarComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -23,7 +25,7 @@ import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.c
     @if (error()) { <div class="alert alert-error no-print">{{ error() }}</div> }
     @if (loading()) { <div class="card card-pad">Loading…</div> }
 
-    @if (rows().length) {
+    @if (rows().length || searchTerm().trim()) {
       <app-company-print-header title="Payables Ageing">
         <p>Total outstanding: {{ money(grandTotal()) }}</p>
       </app-company-print-header>
@@ -34,6 +36,7 @@ import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.c
       </div>
 
       <div class="card" style="overflow:hidden">
+        <app-grid-search-bar class="no-print" [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search payables…" />
         <table class="table">
           <thead>
             <tr>
@@ -43,7 +46,7 @@ import { CompanyPrintHeaderComponent } from '../../shared/company-print-header.c
             </tr>
           </thead>
           <tbody>
-            @for (r of rows(); track r.supplierId) {
+            @for (r of filteredRows(); track r.supplierId) {
               <tr>
                 <td>{{ r.supplierName }}</td>
                 <td>{{ r.phone || '—' }}</td>
@@ -83,6 +86,9 @@ export class PayablesAgeingComponent implements OnInit {
   private service = inject(AgeingService);
 
   rows = signal<PayableAgeingDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.rows(), this.searchTerm()));
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   loading = signal(false);
   error = signal<string | null>(null);
 

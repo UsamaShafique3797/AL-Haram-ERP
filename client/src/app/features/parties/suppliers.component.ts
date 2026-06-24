@@ -1,13 +1,16 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SupplierService } from '../../core/services/supplier.service';
 import { AccessService } from '../../core/services/access.service';
 import { SupplierDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-suppliers',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -23,12 +26,13 @@ import { SupplierDto } from '../../core/models/domain.models';
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search suppliers…" />
       <table class="table">
         <thead>
           <tr><th>Name</th><th>Contact</th><th>Phone</th><th>Terms</th><th>Opening bal.</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
-          @for (s of suppliers(); track s.id) {
+          @for (s of filteredRows(); track s.id) {
             <tr>
               <td>{{ s.name }}@if (s.code) { <span class="badge badge-muted" style="margin-left:.4rem">{{ s.code }}</span> }</td>
               <td>{{ s.contactPerson || '—' }}</td>
@@ -49,7 +53,7 @@ import { SupplierDto } from '../../core/models/domain.models';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No suppliers yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No suppliers yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -105,6 +109,8 @@ export class SuppliersComponent implements OnInit {
   private service = inject(SupplierService);
 
   suppliers = signal<SupplierDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.suppliers(), this.searchTerm()));
   showForm = signal(false);
   loading = signal(false);
   error = signal<string | null>(null);
@@ -124,6 +130,8 @@ export class SuppliersComponent implements OnInit {
     isActive: [true],
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void { this.load(); }
 
   money(v: number): string { return Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }

@@ -12,10 +12,13 @@ import {
   GodownDto, ItemDto, PaymentAccountDto, PurchaseInvoiceDto, SupplierDto,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-purchase-invoices',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DecimalPipe, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DecimalPipe, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -37,12 +40,13 @@ import {
     </div>
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search purchase invoices…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Total</th><th>Paid</th><th>Balance</th></tr>
         </thead>
         <tbody>
-          @for (i of invoices(); track i.id) {
+          @for (i of filteredRows(); track i.id) {
             <tr>
               <td>{{ i.number }}</td>
               <td>{{ i.date | date:'mediumDate' }}</td>
@@ -52,7 +56,7 @@ import {
               <td [style.color]="i.balance > 0 ? 'var(--warn)' : 'var(--success)'">{{ money(i.balance) }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="6" style="text-align:center;color:var(--muted)">No purchase invoices yet.</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No purchase invoices yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -168,6 +172,8 @@ export class PurchaseInvoicesComponent implements OnInit {
   private paymentAccountService = inject(PaymentAccountService);
 
   invoices = signal<PurchaseInvoiceDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.invoices(), this.searchTerm()));
   suppliers = signal<SupplierDto[]>([]);
   godowns = signal<GodownDto[]>([]);
   items = signal<ItemDto[]>([]);
@@ -212,6 +218,8 @@ export class PurchaseInvoicesComponent implements OnInit {
     return { subtotal, discount, taxRate, tax, total, paid, balance: total - paid };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     forkJoin({

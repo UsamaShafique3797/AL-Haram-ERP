@@ -27,9 +27,6 @@ public static class BranchQueryExtensions
     public static IQueryable<DeliveryChallan> ForBranch(this IQueryable<DeliveryChallan> q, IBranchScope b) =>
         b.EffectiveGodownId is Guid g ? q.Where(x => x.GodownId == g) : q;
 
-    public static IQueryable<ProductionOrder> ForBranch(this IQueryable<ProductionOrder> q, IBranchScope b) =>
-        b.EffectiveGodownId is Guid g ? q.Where(x => x.GodownId == g) : q;
-
     public static IQueryable<StockItem> ForBranch(this IQueryable<StockItem> q, IBranchScope b) =>
         b.EffectiveGodownId is Guid g ? q.Where(x => x.GodownId == g) : q;
 

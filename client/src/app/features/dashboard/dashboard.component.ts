@@ -277,6 +277,12 @@ function localDateKey(d: Date): string {
 
   styles: [`
 
+    :host {
+      display: block;
+      max-width: 100%;
+      overflow-x: clip;
+    }
+
     .dash-panel {
       position: relative;
       border-radius: var(--radius);
@@ -284,6 +290,7 @@ function localDateKey(d: Date): string {
       margin-bottom: 1.5rem;
       box-shadow: var(--shadow-lg);
       border: 1px solid rgba(255,255,255,.08);
+      max-width: 100%;
     }
 
     .dash-panel-bg {
@@ -585,13 +592,21 @@ function localDateKey(d: Date): string {
       .stat-sparkline { height: 32px; }
       .grid { grid-template-columns: 1fr; }
       .chart-card.wide { grid-column: span 1; }
-      .dash-panel-inner { padding: 1.1rem 1.15rem 1.25rem; }
-      .dash-hero-title { font-size: 1.25rem; }
+      .dash-panel-inner { padding: 1rem .85rem 1.15rem; }
+      .dash-hero-title { font-size: 1.2rem; }
+      .dash-hero-sub { font-size: .85rem; }
+      .stats-more-toggle { width: 100%; justify-content: center; }
+      .stat-featured { min-height: 0; }
       .dash-panel-bg {
         background:
           linear-gradient(180deg, rgba(18,22,28,.92) 0%, rgba(18,22,28,.82) 100%),
           url('/images/dashboard-hero-steel.png') center 50% / cover no-repeat;
       }
+    }
+
+    @media (max-width: 480px) {
+      .stat-featured-value { font-size: 1rem; }
+      .chart-card app-chart { height: 180px; }
     }
 
   `],

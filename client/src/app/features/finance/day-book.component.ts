@@ -1,13 +1,15 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DayBookService } from '../../core/services/day-book.service';
 import { DayBookDto } from '../../core/models/domain.models';
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 
 @Component({
   selector: 'app-day-book',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, GridSearchBarComponent],
   template: `
     <div class="row no-print" style="align-items:center">
       <div>
@@ -35,12 +37,13 @@ import { DayBookDto } from '../../core/models/domain.models';
       </div>
 
       <div class="card" style="overflow:hidden">
+        <app-grid-search-bar class="no-print" [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search day book…" />
         <table class="table">
           <thead>
             <tr><th>Account</th><th>Type</th><th>Source</th><th>Reference</th><th>Notes</th><th class="num">In</th><th class="num">Out</th></tr>
           </thead>
           <tbody>
-            @for (e of d.entries; track $index) {
+            @for (e of filteredEntries(); track $index) {
               <tr>
                 <td>{{ e.paymentAccountName }}</td>
                 <td>{{ e.accountType }}</td>
@@ -51,7 +54,7 @@ import { DayBookDto } from '../../core/models/domain.models';
                 <td class="num">{{ e.moneyOut ? money(e.moneyOut) : '—' }}</td>
               </tr>
             } @empty {
-              <tr><td colspan="7" style="text-align:center;color:var(--muted)">No movements on this date.</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ gridEmptyMessage(searchTerm(), 'No movements on this date.') }}</td></tr>
             }
           </tbody>
         </table>
@@ -69,9 +72,17 @@ import { DayBookDto } from '../../core/models/domain.models';
   `],
 })
 export class DayBookComponent implements OnInit {
+  readonly gridEmptyMessage = gridEmptyMessage;
+
   private service = inject(DayBookService);
 
   dayBook = signal<DayBookDto | null>(null);
+  searchTerm = signal('');
+  filteredEntries = computed(() => {
+    const d = this.dayBook();
+    if (!d) return [];
+    return filterByGridSearch(d.entries, this.searchTerm());
+  });
   loading = signal(false);
   error = signal<string | null>(null);
   date = new Date().toISOString().substring(0, 10);

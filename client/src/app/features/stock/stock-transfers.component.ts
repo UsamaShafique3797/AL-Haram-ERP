@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -10,10 +10,12 @@ import {
   GodownDto, ItemDto, StockTransferDto, StockTransferStatus, StockTransferStatusLabels,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 @Component({
   selector: 'app-stock-transfers',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -29,12 +31,13 @@ import {
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search transfers…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>From</th><th>To</th><th>Status</th><th>Lines</th><th></th></tr>
         </thead>
         <tbody>
-          @for (t of transfers(); track t.id) {
+          @for (t of filteredRows(); track t.id) {
             <tr>
               <td>{{ t.number }}</td>
               <td>{{ t.date | date:'mediumDate' }}</td>
@@ -57,7 +60,7 @@ import {
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No stock transfers yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No stock transfers yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -136,6 +139,8 @@ export class StockTransfersComponent implements OnInit {
   private itemService = inject(ItemService);
 
   transfers = signal<StockTransferDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.transfers(), this.searchTerm()));
   godowns = signal<GodownDto[]>([]);
   items = signal<ItemDto[]>([]);
   ready = signal(false);
@@ -158,6 +163,8 @@ export class StockTransfersComponent implements OnInit {
 
   get lines(): FormArray { return this.form.get('lines') as FormArray; }
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     forkJoin({

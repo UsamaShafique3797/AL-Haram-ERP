@@ -1,13 +1,15 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GodownService } from '../../core/services/godown.service';
 import { AccessService } from '../../core/services/access.service';
 import { GodownDto } from '../../core/models/domain.models';
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 
 @Component({
   selector: 'app-godowns',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -23,12 +25,13 @@ import { GodownDto } from '../../core/models/domain.models';
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search godowns…" />
       <table class="table">
         <thead>
           <tr><th>Name</th><th>Code</th><th>Phone</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
-          @for (g of godowns(); track g.id) {
+          @for (g of filteredRows(); track g.id) {
             <tr>
               <td>
                 {{ g.name }}
@@ -50,7 +53,7 @@ import { GodownDto } from '../../core/models/domain.models';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="5" style="text-align:center;color:var(--muted)">No godowns yet.</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No godowns yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -97,10 +100,14 @@ export class GodownsComponent implements OnInit {
   private service = inject(GodownService);
 
   godowns = signal<GodownDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.godowns(), this.searchTerm()));
   showForm = signal(false);
   loading = signal(false);
   error = signal<string | null>(null);
   editingId: string | null = null;
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
 
   form = this.fb.nonNullable.group({
     name: ['', Validators.required],

@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CustomerService } from '../../core/services/customer.service';
 import { PaymentAccountService } from '../../core/services/payment-account.service';
@@ -12,10 +13,13 @@ import {
   PaymentMode, PaymentModeLabels,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-receipts',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -31,12 +35,13 @@ import {
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search receipts…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Allocated</th><th>On account</th></tr>
         </thead>
         <tbody>
-          @for (r of receipts(); track r.id) {
+          @for (r of filteredRows(); track r.id) {
             <tr>
               <td>{{ r.number }}</td>
               <td>{{ r.date | date:'mediumDate' }}</td>
@@ -47,7 +52,7 @@ import {
               <td [style.color]="r.unallocated > 0 ? 'var(--warn)' : 'var(--muted)'">{{ money(r.unallocated) }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No receipts yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No receipts yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -153,8 +158,13 @@ export class ReceiptsComponent implements OnInit {
   private paymentAccountService = inject(PaymentAccountService);
   private receiptService = inject(CustomerReceiptService);
   private invoiceService = inject(SalesInvoiceService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private openNewOnLoad = false;
 
   receipts = signal<CustomerReceiptDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.receipts(), this.searchTerm()));
   customers = signal<CustomerDto[]>([]);
   paymentAccounts = signal<PaymentAccountDto[]>([]);
   openInvoices = signal<OpenInvoiceDto[]>([]);
@@ -188,7 +198,10 @@ export class ReceiptsComponent implements OnInit {
     return { amount, allocated, unallocated: amount - allocated };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
+    this.openNewOnLoad = this.route.snapshot.queryParamMap.get('new') === '1';
     this.load();
     forkJoin({
       customers: this.customerService.getAll(),
@@ -197,6 +210,11 @@ export class ReceiptsComponent implements OnInit {
       this.customers.set(customers.filter((c) => c.isActive));
       this.paymentAccounts.set(accounts.filter((a) => a.isActive));
       this.ready.set(true);
+      if (this.openNewOnLoad && this.access.canWrite('sales/receipts')) {
+        this.openNewOnLoad = false;
+        this.openNew();
+        void this.router.navigate([], { relativeTo: this.route, queryParams: { new: null }, queryParamsHandling: 'merge', replaceUrl: true });
+      }
     });
     this.form.valueChanges.subscribe(() => this.formTick.update((n) => n + 1));
   }

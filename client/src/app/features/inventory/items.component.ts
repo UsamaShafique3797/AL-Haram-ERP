@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { map, of, switchMap } from 'rxjs';
@@ -10,10 +10,12 @@ import { GodownService } from '../../core/services/godown.service';
 import { AccessService } from '../../core/services/access.service';
 import { CategoryDto, GodownDto, ItemDto, SaveItemRequest, StockMovementDto, UnitDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 @Component({
   selector: 'app-items',
   standalone: true,
-  imports: [ReactiveFormsModule, SlicePipe],
+  imports: [ReactiveFormsModule, SlicePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -32,12 +34,13 @@ import { CategoryDto, GodownDto, ItemDto, SaveItemRequest, StockMovementDto, Uni
     }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search items…" />
       <table class="table">
         <thead>
           <tr><th>Code</th><th>Name</th><th>Category</th><th>On hand</th><th>Stock value</th><th>Sale rate</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
-          @for (i of items(); track i.id) {
+          @for (i of filteredRows(); track i.id) {
             <tr>
               <td>{{ i.code }}</td>
               <td>
@@ -63,7 +66,7 @@ import { CategoryDto, GodownDto, ItemDto, SaveItemRequest, StockMovementDto, Uni
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="8" style="text-align:center;color:var(--muted)">No items yet.</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No items yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -228,6 +231,8 @@ export class ItemsComponent implements OnInit {
   private godownService = inject(GodownService);
 
   items = signal<ItemDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.items(), this.searchTerm()));
   categories = signal<CategoryDto[]>([]);
   units = signal<UnitDto[]>([]);
   godowns = signal<GodownDto[]>([]);
@@ -270,6 +275,8 @@ export class ItemsComponent implements OnInit {
 
   get additionalUnits(): FormArray { return this.form.get('additionalUnits') as FormArray; }
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     this.categoryService.getAll().subscribe((c) => this.categories.set(c));

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -11,10 +11,13 @@ import {
   GodownDto, GrnDto, ItemDto, PurchaseOrderDto, SupplierDto,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-grns',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -30,12 +33,13 @@ import {
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search GRNs…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Godown</th><th>PO</th><th>Lines</th></tr>
         </thead>
         <tbody>
-          @for (g of grns(); track g.id) {
+          @for (g of filteredRows(); track g.id) {
             <tr>
               <td>{{ g.number }}</td>
               <td>{{ g.date | date:'mediumDate' }}</td>
@@ -45,7 +49,7 @@ import {
               <td>{{ g.lines.length }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="6" style="text-align:center;color:var(--muted)">No GRNs yet.</td></tr>
+            <tr><td colspan="6" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No GRNs yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -145,6 +149,8 @@ export class GrnsComponent implements OnInit {
   private itemService = inject(ItemService);
 
   grns = signal<GrnDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.grns(), this.searchTerm()));
   purchaseOrders = signal<PurchaseOrderDto[]>([]);
   suppliers = signal<SupplierDto[]>([]);
   godowns = signal<GodownDto[]>([]);
@@ -168,6 +174,8 @@ export class GrnsComponent implements OnInit {
 
   filteredPos = signal<PurchaseOrderDto[]>([]);
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     forkJoin({

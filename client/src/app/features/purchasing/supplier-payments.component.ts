@@ -12,10 +12,13 @@ import {
   SupplierDto, SupplierPaymentDto,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-supplier-payments',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -31,12 +34,13 @@ import {
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search payments…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Mode</th><th>Amount</th><th>Allocated</th><th>On account</th></tr>
         </thead>
         <tbody>
-          @for (p of payments(); track p.id) {
+          @for (p of filteredRows(); track p.id) {
             <tr>
               <td>{{ p.number }}</td>
               <td>{{ p.date | date:'mediumDate' }}</td>
@@ -47,7 +51,7 @@ import {
               <td [style.color]="p.unallocated > 0 ? 'var(--warn)' : 'var(--muted)'">{{ money(p.unallocated) }}</td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No payments yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No payments yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -155,6 +159,8 @@ export class SupplierPaymentsComponent implements OnInit {
   private invoiceService = inject(PurchaseInvoiceService);
 
   payments = signal<SupplierPaymentDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.payments(), this.searchTerm()));
   suppliers = signal<SupplierDto[]>([]);
   paymentAccounts = signal<PaymentAccountDto[]>([]);
   openInvoices = signal<OpenPurchaseInvoiceDto[]>([]);
@@ -187,6 +193,8 @@ export class SupplierPaymentsComponent implements OnInit {
     return { amount, allocated, unallocated: amount - allocated };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     forkJoin({

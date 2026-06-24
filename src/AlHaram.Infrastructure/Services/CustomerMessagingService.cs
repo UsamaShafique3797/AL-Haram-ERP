@@ -53,7 +53,13 @@ public class CustomerMessagingService : ICustomerMessagingService
         var pdfBytes = _pdf.GenerateInvoicePdf(invoice, companyInfo);
         var fileName = SanitizeFileName($"{invoice.Number}.pdf");
 
-        var caption = $"{company.Name}\nInvoice {invoice.Number}\nTotal: Rs {invoice.Total:N2}\nBalance: Rs {invoice.Balance:N2}";
+        var caption =
+            $"{company.Name}\n" +
+            $"Invoice {invoice.Number}\n" +
+            $"Date: {invoice.Date:dd/MM/yyyy}\n" +
+            $"Total: Rs {invoice.Total:N2}\n" +
+            $"Balance: Rs {invoice.Balance:N2}\n\n" +
+            "Please find your invoice PDF attached.";
 
         try
         {

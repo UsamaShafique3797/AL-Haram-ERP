@@ -12,10 +12,13 @@ import {
   PurchaseOrderStatusLabels, SupplierDto,
 } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-purchase-orders',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -36,12 +39,13 @@ import {
     </div>
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search purchase orders…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Supplier</th><th>Godown</th><th>Status</th><th>Total</th><th></th></tr>
         </thead>
         <tbody>
-          @for (o of orders(); track o.id) {
+          @for (o of filteredRows(); track o.id) {
             <tr>
               <td>{{ o.number }}</td>
               <td>{{ o.date | date:'mediumDate' }}</td>
@@ -64,7 +68,7 @@ import {
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No purchase orders yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No purchase orders yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -170,6 +174,8 @@ export class PurchaseOrdersComponent implements OnInit {
   private itemService = inject(ItemService);
 
   orders = signal<PurchaseOrderDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.orders(), this.searchTerm()));
   suppliers = signal<SupplierDto[]>([]);
   godowns = signal<GodownDto[]>([]);
   items = signal<ItemDto[]>([]);
@@ -214,6 +220,8 @@ export class PurchaseOrdersComponent implements OnInit {
     return { subtotal, discount, taxRate, tax, total };
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     forkJoin({

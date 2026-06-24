@@ -1,13 +1,16 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CategoryService } from '../../core/services/category.service';
 import { AccessService } from '../../core/services/access.service';
 import { CategoryDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
+
 @Component({
   selector: 'app-categories',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -23,10 +26,11 @@ import { CategoryDto } from '../../core/models/domain.models';
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search categories…" />
       <table class="table">
         <thead><tr><th>Name</th><th>Code</th><th>Items</th><th>Status</th><th></th></tr></thead>
         <tbody>
-          @for (c of categories(); track c.id) {
+          @for (c of filteredRows(); track c.id) {
             <tr>
               <td>{{ c.name }}</td>
               <td>{{ c.code || '—' }}</td>
@@ -45,7 +49,7 @@ import { CategoryDto } from '../../core/models/domain.models';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="5" style="text-align:center;color:var(--muted)">No categories yet.</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No categories yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -88,6 +92,8 @@ export class CategoriesComponent implements OnInit {
   private service = inject(CategoryService);
 
   categories = signal<CategoryDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.categories(), this.searchTerm()));
   showForm = signal(false);
   loading = signal(false);
   error = signal<string | null>(null);
@@ -100,6 +106,8 @@ export class CategoriesComponent implements OnInit {
     isActive: [true],
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void { this.load(); }
 
   load(): void {

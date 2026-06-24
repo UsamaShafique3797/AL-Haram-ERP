@@ -8,10 +8,12 @@ import { WhatsAppService } from '../../core/services/whatsapp.service';
 import { AccessService } from '../../core/services/access.service';
 import { ReceivableDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 @Component({
   selector: 'app-receivables',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -21,6 +23,14 @@ import { ReceivableDto } from '../../core/models/domain.models';
     </div>
 
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
+    @if (whatsAppInfo()) {
+      <div class="alert wa-info">
+        <div>{{ whatsAppInfo() }}</div>
+        @if (whatsAppChatUrl()) {
+          <a class="btn btn-primary btn-sm wa-open-btn" [href]="whatsAppChatUrl()" target="_blank" rel="noopener noreferrer">Open WhatsApp</a>
+        }
+      </div>
+    }
 
     <div class="row" style="margin-bottom:1rem">
       <div class="card card-pad" style="flex:1"><span class="kpi-label">Customers with balance</span><div class="kpi">{{ withBalance() }}</div></div>
@@ -30,12 +40,13 @@ import { ReceivableDto } from '../../core/models/domain.models';
     </div>
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search receivables…" />
       <table class="table">
         <thead>
           <tr><th>Customer</th><th>Phone</th><th class="num">Opening</th><th class="num">Invoiced</th><th class="num">Returned</th><th class="num">Received</th><th class="num">Outstanding</th><th style="text-align:right">Actions</th></tr>
         </thead>
         <tbody>
-          @for (r of rows(); track r.customerId) {
+          @for (r of filteredRows(); track r.customerId) {
             <tr>
               <td>{{ r.customerName }}</td>
               <td>{{ r.phone || '—' }}</td>
@@ -73,7 +84,7 @@ import { ReceivableDto } from '../../core/models/domain.models';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="8" style="text-align:center;color:var(--muted)">No customers yet.</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No customers yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -92,6 +103,8 @@ import { ReceivableDto } from '../../core/models/domain.models';
     .btn-bill { background: #047857; color: #fff; border-color: #065f46; }
     .btn-bill:hover:not(:disabled) { background: #065f46; border-color: #064e3b; color: #fff; }
     .btn-remind:disabled, .btn-bill:disabled { opacity: .55; cursor: not-allowed; }
+    .wa-info { background: #eef8ef; color: #1e6b3a; border: 1px solid #b7e4c7; margin-bottom: 1rem; }
+    .wa-open-btn { margin-top: .65rem; }
   `],
 })
 export class ReceivablesComponent implements OnInit {
@@ -102,7 +115,11 @@ export class ReceivablesComponent implements OnInit {
   private companyCtx = inject(CompanyContextService);
 
   rows = signal<ReceivableDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.rows(), this.searchTerm()));
   error = signal<string | null>(null);
+  whatsAppInfo = signal<string | null>(null);
+  whatsAppChatUrl = signal<string | null>(null);
   remindingId = signal<string | null>(null);
 
   withBalance = computed(() => this.rows().filter((r) => r.outstanding > 0).length);
@@ -110,6 +127,8 @@ export class ReceivablesComponent implements OnInit {
   totalInvoiced = computed(() => this.rows().reduce((s, r) => s + r.invoiced, 0));
   totalReceived = computed(() => this.rows().reduce((s, r) => s + r.received, 0));
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.ledgerService.getReceivables().subscribe((r) => this.rows.set(r));
   }
@@ -135,13 +154,20 @@ export class ReceivablesComponent implements OnInit {
   async remindPdf(row: ReceivableDto): Promise<void> {
     this.remindingId.set(row.customerId);
     this.error.set(null);
+    this.whatsAppInfo.set(null);
+    this.whatsAppChatUrl.set(null);
     try {
-      const err = await this.whatsAppService.shareStatementPdf(
+      const result = await this.whatsAppService.shareStatementPdf(
         row.customerId, row.phone, row.customerName, row.outstanding, this.companyCtx.name(),
       );
-      if (err) this.error.set(err);
+      if (result.error) {
+        this.error.set(result.error);
+      } else if (result.info) {
+        this.whatsAppInfo.set(result.info);
+        if (result.chatUrl) this.whatsAppChatUrl.set(result.chatUrl);
+      }
     } catch {
-      this.error.set('Could not download statement PDF.');
+      this.error.set('Could not prepare statement for WhatsApp.');
     } finally {
       this.remindingId.set(null);
     }

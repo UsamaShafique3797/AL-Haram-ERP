@@ -1,15 +1,17 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UserService } from '../../core/services/user.service';
 import { GodownService } from '../../core/services/godown.service';
 import { AccessService } from '../../core/services/access.service';
 import { UserDto } from '../../core/models/auth.models';
 import { GodownDto } from '../../core/models/domain.models';
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 
 @Component({
   selector: 'app-users',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -25,10 +27,11 @@ import { GodownDto } from '../../core/models/domain.models';
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search users…" />
       <table class="table">
         <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Branch</th><th>Roles</th><th>Status</th><th></th></tr></thead>
         <tbody>
-          @for (u of users(); track u.id) {
+          @for (u of filteredRows(); track u.id) {
             <tr [class.inactive-row]="!u.isActive">
               <td>{{ u.fullName }}</td>
               <td>{{ u.userName }}</td>
@@ -48,7 +51,7 @@ import { GodownDto } from '../../core/models/domain.models';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No users yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No users yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -129,6 +132,8 @@ export class UsersComponent implements OnInit {
   private godownService = inject(GodownService);
 
   users = signal<UserDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.users(), this.searchTerm()));
   godowns = signal<GodownDto[]>([]);
   roles = signal<string[]>([]);
   showForm = signal(false);
@@ -147,6 +152,8 @@ export class UsersComponent implements OnInit {
     isActive: [true],
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.load();
     this.service.getRoles().subscribe((r) => this.roles.set(r));

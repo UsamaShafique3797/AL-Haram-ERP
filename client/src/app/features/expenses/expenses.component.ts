@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -10,10 +10,12 @@ import { FileService } from '../../core/services/file.service';
 import { AccessService } from '../../core/services/access.service';
 import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/models/domain.models';
 
+import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
+import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
 @Component({
   selector: 'app-expenses',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, RouterLink, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -32,12 +34,13 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
     @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
 
     <div class="card" style="overflow:hidden">
+      <app-grid-search-bar [value]="searchTerm()" (valueChange)="searchTerm.set($event)" placeholder="Search expenses…" />
       <table class="table">
         <thead>
           <tr><th>Number</th><th>Date</th><th>Category</th><th>Account</th><th class="num">Amount</th><th>Notes</th><th></th></tr>
         </thead>
         <tbody>
-          @for (e of expenses(); track e.id) {
+          @for (e of filteredRows(); track e.id) {
             <tr>
               <td>{{ e.number }}</td>
               <td>{{ e.date | date:'mediumDate' }}</td>
@@ -55,7 +58,7 @@ import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/mo
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" style="text-align:center;color:var(--muted)">No expenses recorded yet.</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:var(--muted)">{{ emptyGridMessage('No expenses recorded yet.') }}</td></tr>
           }
         </tbody>
       </table>
@@ -123,6 +126,8 @@ export class ExpensesComponent implements OnInit {
   private fileService = inject(FileService);
 
   expenses = signal<ExpenseDto[]>([]);
+  searchTerm = signal('');
+  filteredRows = computed(() => filterByGridSearch(this.expenses(), this.searchTerm()));
   categories = signal<ExpenseCategoryDto[]>([]);
   accounts = signal<PaymentAccountDto[]>([]);
   ready = signal(false);
@@ -142,6 +147,8 @@ export class ExpensesComponent implements OnInit {
     attachmentPath: [''],
   });
 
+
+  emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     forkJoin({
       expenses: this.expenseService.getAll(),

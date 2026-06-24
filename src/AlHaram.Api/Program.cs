@@ -20,7 +20,6 @@ builder.Services.AddCors(options =>
     {
         if (builder.Environment.IsDevelopment())
         {
-            // Allow ng serve on any localhost port (4200, 64824, etc.)
             policy.SetIsOriginAllowed(origin =>
             {
                 if (string.IsNullOrWhiteSpace(origin)) return false;
@@ -32,8 +31,11 @@ builder.Services.AddCors(options =>
         else
         {
             var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                          ?? new[] { "http://localhost:4200" };
-            policy.WithOrigins(origins);
+                          ?? Array.Empty<string>();
+            if (origins.Length > 0)
+                policy.WithOrigins(origins);
+            else
+                policy.SetIsOriginAllowed(_ => false);
         }
 
         policy.AllowAnyHeader().AllowAnyMethod();
@@ -68,10 +70,22 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+
 app.UseCors(CorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.MapFallbackToFile("index.html");
+}
 
 await DbSeeder.SeedAsync(app.Services);
 
