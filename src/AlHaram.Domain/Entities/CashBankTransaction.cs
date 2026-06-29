@@ -12,6 +12,10 @@ public class CashBankTransaction : BaseEntity
     public Guid PaymentAccountId { get; set; }
     public PaymentAccount? PaymentAccount { get; set; }
 
+    /// <summary>Branch (godown) this money movement belongs to. Null only for legacy rows.</summary>
+    public Guid? GodownId { get; set; }
+    public Godown? Godown { get; set; }
+
     public DateTime Date { get; set; } = DateTime.UtcNow;
 
     public CashBankSource Source { get; set; }

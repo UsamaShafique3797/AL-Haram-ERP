@@ -23,7 +23,7 @@ public class StockController : ControllerBase
         => Ok(await _stock.GetMovementsAsync(itemId, godownId, ct));
 
     [HttpPost("opening")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> PostOpeningStock([FromBody] OpeningStockRequest request, CancellationToken ct)
     {
         var result = await _stock.PostOpeningStockAsync(request, ct);
@@ -31,7 +31,7 @@ public class StockController : ControllerBase
     }
 
     [HttpPut("levels")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> UpdateLevel([FromBody] UpdateStockLevelRequest request, CancellationToken ct)
     {
         var result = await _stock.UpdateStockLevelAsync(request, ct);
@@ -39,7 +39,7 @@ public class StockController : ControllerBase
     }
 
     [HttpDelete("levels/{itemId:guid}/{godownId:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> DeleteLevel(Guid itemId, Guid godownId, CancellationToken ct)
     {
         var result = await _stock.DeleteStockLevelAsync(itemId, godownId, ct);
@@ -58,7 +58,7 @@ public class StockController : ControllerBase
     }
 
     [HttpPost("adjustments")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> CreateAdjustment([FromBody] SaveStockAdjustmentRequest request, CancellationToken ct)
     {
         var result = await _stock.CreateAdjustmentAsync(request, ct);

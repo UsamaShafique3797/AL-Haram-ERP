@@ -3,7 +3,7 @@
 This guide deploys the ERP as **one website** on Azure:
 
 - **Angular UI + .NET API** → Azure App Service **F1 (Free)**
-- **SQL Server database** → Azure SQL **Basic** (~$5/month; often covered by free trial credits)
+- **SQL Server database** → Azure SQL **free offer** (serverless GP — $0 within monthly limits)
 
 After deployment your client opens a single URL, e.g. `https://alharam-pos-12345.azurewebsites.net`.
 
@@ -42,7 +42,7 @@ cd "C:\Users\shafiusa\Al-Haram POS\deploy\azure"
 The script will:
 
 1. Create a resource group
-2. Create Azure SQL server + database
+2. Create Azure SQL server + database (free offer tier)
 3. Create App Service plan (F1 Free) + Web App
 4. Build Angular and publish the API with `wwwroot`
 5. Deploy a zip to Azure
@@ -83,7 +83,15 @@ az sql server create -g $RG -n $SQL -l $LOCATION -u $SQL_USER -p $SQL_PASS
 az sql server firewall-rule create -g $RG -s $SQL -n AllowAzure `
   --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
 
-az sql db create -g $RG -s $SQL -n AlHaramDb --edition Basic --capacity 5
+# Free tier (default — $0 within monthly limits)
+az sql db create -g $RG -s $SQL -n AlHaramDb `
+  --edition GeneralPurpose --family Gen5 --capacity 2 `
+  --compute-model Serverless `
+  --use-free-limit `
+  --free-limit-exhaustion-behavior AutoPause
+
+# Optional paid tier (~$5/mo) if you need always-on DB:
+# az sql db create -g $RG -s $SQL -n AlHaramDb --edition Basic --capacity 5
 ```
 
 ### Step 4 — App Service (Free F1)
@@ -143,11 +151,13 @@ start "https://$APP.azurewebsites.net"
 
 | Service | Tier | Typical cost |
 |---------|------|----------------|
-| App Service | **F1 Free** | $0 |
-| Azure SQL | Basic (5 DTU) | ~$5/month |
-| **Total** | | **~$5/month** after trial |
+| App Service | **F1 Free** | **$0** |
+| Azure SQL | **Free offer** (serverless GP) | **$0** within limits |
+| **Total** | | **$0** for demo |
 
-During the **Azure free trial**, the $200 credit usually covers this for several months.
+**Free SQL limits (per database, per month):** 100,000 vCore-seconds, 32 GB data, 32 GB backup. Up to 10 free databases per subscription. When limits are hit, the database **auto-pauses** until next month (script default).
+
+Use `.\deploy.ps1 -UsePaidSql` only if you need Basic tier (~$5/mo, always on).
 
 ---
 
@@ -157,7 +167,7 @@ During the **Azure free trial**, the $200 credit usually covers this for several
 |------------|--------|
 | F1 app sleeps when idle | First load after idle can take 30–60 seconds |
 | F1 CPU cap | Fine for demo; not for heavy daily production use |
-| Azure SQL Basic | Small DB; enough for demo / small business |
+| Azure SQL free offer | Pauses if monthly compute limit exceeded; fine for demo |
 | File uploads | Stored on App Service disk (`/home/site/data`); fine for demo |
 
 For production later, upgrade to **App Service B1** (~$13/mo) and consider **Azure Blob Storage** for files.

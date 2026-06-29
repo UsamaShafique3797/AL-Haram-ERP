@@ -43,7 +43,7 @@ public class CustomerMessagingController : ControllerBase
     public CustomerMessagingController(ICustomerMessagingService messaging) => _messaging = messaging;
 
     [HttpGet("invoices/{invoiceId:guid}/pdf")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> DownloadInvoicePdf(Guid invoiceId, CancellationToken ct)
     {
         var result = await _messaging.GetInvoicePdfAsync(invoiceId, ct);
@@ -52,7 +52,7 @@ public class CustomerMessagingController : ControllerBase
     }
 
     [HttpGet("customers/{customerId:guid}/statement.pdf")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> DownloadStatementPdf(Guid customerId, CancellationToken ct)
     {
         var result = await _messaging.GetStatementPdfAsync(customerId, ct);
@@ -61,7 +61,7 @@ public class CustomerMessagingController : ControllerBase
     }
 
     [HttpPost("invoices/{invoiceId:guid}/whatsapp")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> SendInvoice(Guid invoiceId, CancellationToken ct)
     {
         var result = await _messaging.SendInvoicePdfAsync(invoiceId, ct);
@@ -69,7 +69,7 @@ public class CustomerMessagingController : ControllerBase
     }
 
     [HttpPost("customers/{customerId:guid}/payment-reminder")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> SendPaymentReminder(
         Guid customerId,
         [FromBody] SendPaymentReminderRequest request,

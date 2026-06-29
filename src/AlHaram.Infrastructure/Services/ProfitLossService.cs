@@ -42,13 +42,10 @@ public class ProfitLossService : IProfitLossService
             returnCogsQuery = returnCogsQuery.Where(l => l.SalesReturn!.GodownId == g);
         var returnCogs = await returnCogsQuery.SumAsync(l => (decimal?)l.LineCost, ct) ?? 0m;
 
-        decimal expenses = 0m;
-        if (branchId is null)
-        {
-            expenses = await _db.Expenses
-                .Where(e => e.Date >= fromDate && e.Date <= toDate)
-                .SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
-        }
+        var expenses = await _db.Expenses
+            .Where(e => e.Date >= fromDate && e.Date <= toDate)
+            .ForBranch(_branch)
+            .SumAsync(e => (decimal?)e.Amount, ct) ?? 0m;
 
         var netRevenue = revenue - salesReturns;
         var netCogs = cogs - returnCogs;
@@ -60,19 +57,17 @@ public class ProfitLossService : IProfitLossService
 
         if (includeBreakdown)
         {
-            if (branchId is null)
-            {
-                var expenseGroups = await _db.Expenses
-                    .Where(e => e.Date >= fromDate && e.Date <= toDate)
-                    .GroupBy(e => e.ExpenseCategory!.Name)
-                    .Select(g => new { Name = g.Key, Amount = g.Sum(x => x.Amount) })
-                    .OrderByDescending(x => x.Amount)
-                    .ToListAsync(ct);
+            var expenseGroups = await _db.Expenses
+                .Where(e => e.Date >= fromDate && e.Date <= toDate)
+                .ForBranch(_branch)
+                .GroupBy(e => e.ExpenseCategory!.Name)
+                .Select(g => new { Name = g.Key, Amount = g.Sum(x => x.Amount) })
+                .OrderByDescending(x => x.Amount)
+                .ToListAsync(ct);
 
-                expenseByCategory = expenseGroups
-                    .Select(x => new ProfitLossCategoryBreakdownDto(x.Name, x.Amount))
-                    .ToList();
-            }
+            expenseByCategory = expenseGroups
+                .Select(x => new ProfitLossCategoryBreakdownDto(x.Name, x.Amount))
+                .ToList();
 
             var soldLinesQuery = _db.SalesInvoiceLines
                 .Include(l => l.Item)

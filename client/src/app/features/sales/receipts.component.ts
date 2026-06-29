@@ -8,8 +8,11 @@ import { PaymentAccountService } from '../../core/services/payment-account.servi
 import { CustomerReceiptService } from '../../core/services/customer-receipt.service';
 import { SalesInvoiceService } from '../../core/services/sales-invoice.service';
 import { AccessService } from '../../core/services/access.service';
+import { AuthService } from '../../core/services/auth.service';
+import { BranchContextService } from '../../core/services/branch-context.service';
+import { GodownService } from '../../core/services/godown.service';
 import {
-  CustomerDto, CustomerReceiptDto, OpenInvoiceDto, PaymentAccountDto,
+  CustomerDto, CustomerReceiptDto, GodownDto, OpenInvoiceDto, PaymentAccountDto,
   PaymentMode, PaymentModeLabels,
 } from '../../core/models/domain.models';
 
@@ -69,10 +72,26 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
               <div class="row">
                 <div class="field" style="flex:2">
                   <label>Customer</label>
-                  <select formControlName="customerId" (change)="onCustomerChange()">
-                    <option value="">— select —</option>
-                    @for (c of customers(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-                  </select>
+                  <div class="combo">
+                    <input type="text" class="combo-input" autocomplete="off"
+                           [value]="customerSearch()"
+                           (input)="onCustomerSearch($event)"
+                           (focus)="openCustomerDropdown()"
+                           (keydown.enter)="$event.preventDefault()"
+                           placeholder="Search customer…" />
+                    @if (customerDropdownOpen()) {
+                      <button type="button" class="combo-backdrop" (click)="closeCustomerDropdown()" aria-label="Close"></button>
+                      <div class="combo-list">
+                        @for (c of filteredCustomers(); track c.id) {
+                          <button type="button" class="combo-item"
+                                  [class.active]="c.id === form.controls.customerId.value"
+                                  (click)="selectCustomer(c)">{{ c.name }}</button>
+                        } @empty {
+                          <div class="combo-empty">No customers found</div>
+                        }
+                      </div>
+                    }
+                  </div>
                 </div>
                 <div class="field" style="flex:1"><label>Date</label><input type="date" formControlName="date" /></div>
                 <div class="field" style="flex:1">
@@ -90,6 +109,14 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
                     @for (a of paymentAccounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
                   </select>
                 </div>
+                @if (showBranch()) {
+                  <div class="field" style="flex:1">
+                    <label>Branch</label>
+                    <select formControlName="godownId">
+                      @for (g of godowns(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
+                    </select>
+                  </div>
+                }
               </div>
 
               <div class="row">
@@ -149,6 +176,17 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
     .totals .row { margin: 0; padding: .15rem 0; }
     .muted { color: var(--muted); }
     h4 { font-size: .9rem; }
+    .combo { position: relative; }
+    .combo-input { width: 100%; }
+    .combo-backdrop { position: fixed; inset: 0; z-index: 60; background: transparent; border: none; cursor: default; padding: 0; }
+    .combo-list { position: absolute; z-index: 61; top: calc(100% + 2px); left: 0; right: 0;
+      max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid var(--line);
+      border-radius: 8px; box-shadow: 0 12px 28px rgba(16,24,40,.18); padding: .25rem; }
+    .combo-item { display: block; width: 100%; text-align: left; padding: .5rem .65rem; border: none;
+      background: transparent; border-radius: 6px; cursor: pointer; font-size: .9rem; color: var(--ink); }
+    .combo-item:hover { background: #f1f5f9; }
+    .combo-item.active { background: var(--brand); color: #fff; }
+    .combo-empty { padding: .6rem .65rem; color: var(--muted); font-size: .85rem; }
   `],
 })
 export class ReceiptsComponent implements OnInit {
@@ -160,7 +198,11 @@ export class ReceiptsComponent implements OnInit {
   private invoiceService = inject(SalesInvoiceService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private auth = inject(AuthService);
+  private branchContext = inject(BranchContextService);
+  private godownService = inject(GodownService);
   private openNewOnLoad = false;
+  private preselectCustomerId: string | null = null;
 
   receipts = signal<CustomerReceiptDto[]>([]);
   searchTerm = signal('');
@@ -168,7 +210,19 @@ export class ReceiptsComponent implements OnInit {
   customers = signal<CustomerDto[]>([]);
   paymentAccounts = signal<PaymentAccountDto[]>([]);
   openInvoices = signal<OpenInvoiceDto[]>([]);
+  godowns = signal<GodownDto[]>([]);
+  showBranch = computed(() => !!this.auth.user()?.canAccessAllBranches);
   ready = signal(false);
+
+  customerSearch = signal('');
+  customerDropdownOpen = signal(false);
+  filteredCustomers = computed(() => {
+    const q = this.customerSearch().trim().toLowerCase();
+    const list = this.customers();
+    if (!q) return list;
+    return list.filter((c) =>
+      c.name.toLowerCase().includes(q) || (c.phone ?? '').toLowerCase().includes(q));
+  });
 
   showForm = signal(false);
   loading = signal(false);
@@ -185,6 +239,7 @@ export class ReceiptsComponent implements OnInit {
     amount: [0, [Validators.required, Validators.min(0.01)]],
     reference: [''],
     notes: [''],
+    godownId: [''],
     allocations: this.fb.array<FormGroup>([]),
   });
 
@@ -202,18 +257,24 @@ export class ReceiptsComponent implements OnInit {
   emptyGridMessage = (defaultMessage: string) => gridEmptyMessage(this.searchTerm(), defaultMessage);
   ngOnInit(): void {
     this.openNewOnLoad = this.route.snapshot.queryParamMap.get('new') === '1';
+    this.preselectCustomerId = this.route.snapshot.queryParamMap.get('customerId');
     this.load();
     forkJoin({
       customers: this.customerService.getAll(),
       accounts: this.paymentAccountService.getAll(),
-    }).subscribe(({ customers, accounts }) => {
+      godowns: this.godownService.getAllUnscoped(),
+    }).subscribe(({ customers, accounts, godowns }) => {
       this.customers.set(customers.filter((c) => c.isActive));
       this.paymentAccounts.set(accounts.filter((a) => a.isActive));
+      this.godowns.set(godowns.filter((g) => g.isActive));
       this.ready.set(true);
-      if (this.openNewOnLoad && this.access.canWrite('sales/receipts')) {
-        this.openNewOnLoad = false;
+      const shouldOpen = (this.openNewOnLoad || !!this.preselectCustomerId) && this.access.canWrite('sales/receipts');
+      if (shouldOpen) {
         this.openNew();
-        void this.router.navigate([], { relativeTo: this.route, queryParams: { new: null }, queryParamsHandling: 'merge', replaceUrl: true });
+        if (this.preselectCustomerId) this.selectCustomerById(this.preselectCustomerId);
+        this.openNewOnLoad = false;
+        this.preselectCustomerId = null;
+        void this.router.navigate([], { relativeTo: this.route, queryParams: { new: null, customerId: null }, queryParamsHandling: 'merge', replaceUrl: true });
       }
     });
     this.form.valueChanges.subscribe(() => this.formTick.update((n) => n + 1));
@@ -236,6 +297,8 @@ export class ReceiptsComponent implements OnInit {
     const defaultAccount = this.paymentAccounts().find((a) => a.isDefault) ?? this.paymentAccounts()[0];
     this.allocations.clear();
     this.openInvoices.set([]);
+    this.customerSearch.set('');
+    this.customerDropdownOpen.set(false);
     this.form.reset({
       customerId: '',
       date: new Date().toISOString().substring(0, 10),
@@ -244,8 +307,33 @@ export class ReceiptsComponent implements OnInit {
       amount: 0,
       reference: '',
       notes: '',
+      godownId: this.defaultBranchId(),
     });
     this.showForm.set(true);
+  }
+
+  private defaultBranchId(): string {
+    return this.branchContext.selectedGodownId() ?? this.godowns().find((g) => g.isDefault)?.id ?? this.godowns()[0]?.id ?? '';
+  }
+
+  openCustomerDropdown(): void { this.customerDropdownOpen.set(true); }
+  closeCustomerDropdown(): void { this.customerDropdownOpen.set(false); }
+
+  onCustomerSearch(event: Event): void {
+    this.customerSearch.set((event.target as HTMLInputElement).value);
+    this.customerDropdownOpen.set(true);
+  }
+
+  selectCustomer(c: CustomerDto): void {
+    this.form.patchValue({ customerId: c.id });
+    this.customerSearch.set(c.name);
+    this.customerDropdownOpen.set(false);
+    this.onCustomerChange();
+  }
+
+  selectCustomerById(id: string): void {
+    const c = this.customers().find((x) => x.id === id);
+    if (c) this.selectCustomer(c);
   }
 
   onCustomerChange(): void {
@@ -305,6 +393,7 @@ export class ReceiptsComponent implements OnInit {
       reference: v.reference || null,
       notes: v.notes || null,
       allocations: allocs,
+      godownId: v.godownId || null,
     }).subscribe({
       next: () => { this.loading.set(false); this.close(); this.load(); },
       error: (err) => {

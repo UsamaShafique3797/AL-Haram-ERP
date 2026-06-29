@@ -199,6 +199,7 @@ public class PurchaseInvoiceService : IPurchaseInvoiceService
             _db.CashBankTransactions.Add(new CashBankTransaction
             {
                 PaymentAccountId = accountId,
+                GodownId = invoice.GodownId,
                 Date = request.Date,
                 Source = CashBankSource.SupplierPayment,
                 Amount = -request.PaidAmount,

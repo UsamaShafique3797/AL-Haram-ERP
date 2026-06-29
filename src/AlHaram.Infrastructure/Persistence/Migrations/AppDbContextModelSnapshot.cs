@@ -179,6 +179,9 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("GodownId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -204,6 +207,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GodownId");
 
                     b.HasIndex("PaymentAccountId", "Date");
 
@@ -292,10 +297,10 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Tagline")
+                    b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Phone")
+                    b.Property<string>("Tagline")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("TaxNumber")
@@ -406,6 +411,9 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("GodownId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -433,6 +441,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GodownId");
 
                     b.HasIndex("Number")
                         .IsUnique();
@@ -589,6 +599,9 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ExpenseCategoryId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("GodownId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -610,6 +623,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GodownId");
 
                     b.HasIndex("Number")
                         .IsUnique();
@@ -1709,8 +1724,13 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("CustomerId")
+                    b.Property<Guid?>("CustomerId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
@@ -2561,6 +2581,9 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("GodownId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -2591,6 +2614,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GodownId");
 
                     b.HasIndex("Number")
                         .IsUnique();
@@ -2891,11 +2916,18 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AlHaram.Domain.Entities.CashBankTransaction", b =>
                 {
+                    b.HasOne("AlHaram.Domain.Entities.Godown", "Godown")
+                        .WithMany()
+                        .HasForeignKey("GodownId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AlHaram.Domain.Entities.PaymentAccount", "PaymentAccount")
                         .WithMany()
                         .HasForeignKey("PaymentAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Godown");
 
                     b.Navigation("PaymentAccount");
                 });
@@ -2908,6 +2940,11 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("AlHaram.Domain.Entities.Godown", "Godown")
+                        .WithMany()
+                        .HasForeignKey("GodownId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AlHaram.Domain.Entities.PaymentAccount", "PaymentAccount")
                         .WithMany()
                         .HasForeignKey("PaymentAccountId")
@@ -2915,6 +2952,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Customer");
+
+                    b.Navigation("Godown");
 
                     b.Navigation("PaymentAccount");
                 });
@@ -2980,6 +3019,11 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("AlHaram.Domain.Entities.Godown", "Godown")
+                        .WithMany()
+                        .HasForeignKey("GodownId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AlHaram.Domain.Entities.PaymentAccount", "PaymentAccount")
                         .WithMany()
                         .HasForeignKey("PaymentAccountId")
@@ -2987,6 +3031,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("ExpenseCategory");
+
+                    b.Navigation("Godown");
 
                     b.Navigation("PaymentAccount");
                 });
@@ -3335,8 +3381,7 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                     b.HasOne("AlHaram.Domain.Entities.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("ConvertedSalesInvoice");
 
@@ -3604,6 +3649,11 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AlHaram.Domain.Entities.SupplierPayment", b =>
                 {
+                    b.HasOne("AlHaram.Domain.Entities.Godown", "Godown")
+                        .WithMany()
+                        .HasForeignKey("GodownId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AlHaram.Domain.Entities.PaymentAccount", "PaymentAccount")
                         .WithMany()
                         .HasForeignKey("PaymentAccountId")
@@ -3615,6 +3665,8 @@ namespace AlHaram.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Godown");
 
                     b.Navigation("PaymentAccount");
 

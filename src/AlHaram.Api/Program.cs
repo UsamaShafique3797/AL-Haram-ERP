@@ -63,6 +63,10 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+var webRoot = app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var wwwrootIndex = Path.Combine(webRoot, "index.html");
+var serveSpa = !app.Environment.IsDevelopment() || File.Exists(wwwrootIndex);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -71,7 +75,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-if (!app.Environment.IsDevelopment())
+if (serveSpa)
 {
     app.UseDefaultFiles();
     app.UseStaticFiles();
@@ -82,7 +86,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-if (!app.Environment.IsDevelopment())
+if (serveSpa)
 {
     app.MapFallbackToFile("index.html");
 }

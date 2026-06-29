@@ -94,10 +94,29 @@ public class CustomerLedgerService : ICustomerLedgerService
             .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Total), Paid = g.Sum(x => x.PaidAmount) })
             .ToDictionaryAsync(x => x.Id, ct);
 
-        var receiptTotals = await _db.CustomerReceipts
-            .GroupBy(r => r.CustomerId)
-            .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Amount) })
-            .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
+        var branchScoped = _branch.EffectiveGodownId is not null;
+
+        // Receipts applied to invoices. Company-wide view uses the full receipt amount
+        // (covers on-account prepayments); a branch view only counts receipts allocated to
+        // that branch's invoices, so it stays consistent with the open-invoice / settle view.
+        Dictionary<Guid, decimal> receivedTotals;
+        if (branchScoped)
+        {
+            var branchInvoiceIds = _db.SalesInvoices.ForBranch(_branch).Select(i => i.Id);
+            receivedTotals = await _db.ReceiptAllocations
+                .Where(a => branchInvoiceIds.Contains(a.SalesInvoiceId))
+                .Join(_db.SalesInvoices, a => a.SalesInvoiceId, i => i.Id, (a, i) => new { i.CustomerId, a.Amount })
+                .GroupBy(x => x.CustomerId)
+                .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Amount) })
+                .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
+        }
+        else
+        {
+            receivedTotals = await _db.CustomerReceipts
+                .GroupBy(r => r.CustomerId)
+                .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Amount) })
+                .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
+        }
 
         var returnTotals = await _db.SalesReturns
             .ForBranch(_branch)
@@ -105,14 +124,13 @@ public class CustomerLedgerService : ICustomerLedgerService
             .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Total) })
             .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
 
-        var branchScoped = _branch.EffectiveGodownId is not null;
         var result = new List<ReceivableDto>();
         foreach (var c in customers)
         {
             var invSummary = invoiceTotals.GetValueOrDefault(c.Id);
             decimal invoiced = invSummary?.Total ?? 0m;
             decimal paidAtSale = invSummary?.Paid ?? 0m;
-            decimal received = branchScoped ? 0m : receiptTotals.GetValueOrDefault(c.Id);
+            decimal received = receivedTotals.GetValueOrDefault(c.Id);
             decimal returned = returnTotals.GetValueOrDefault(c.Id);
             var opening = branchScoped ? 0m : c.OpeningBalance;
 

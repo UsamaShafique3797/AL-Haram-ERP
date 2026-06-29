@@ -53,8 +53,8 @@ public class QuotationService : IQuotationService
         if (request.Lines is null || request.Lines.Count == 0)
             return Result<QuotationDto>.Failure("Add at least one line.");
 
-        if (!await _db.Customers.AnyAsync(c => c.Id == request.CustomerId, ct))
-            return Result<QuotationDto>.Failure("Customer not found.");
+        if (string.IsNullOrWhiteSpace(request.CustomerName))
+            return Result<QuotationDto>.Failure("Customer name is required.");
 
         var build = await BuildLinesAsync(request, ct);
         if (!build.Succeeded) return Result<QuotationDto>.Failure(build.Errors);
@@ -67,6 +67,7 @@ public class QuotationService : IQuotationService
             Number = await NextNumberAsync(ct),
             Date = request.Date,
             ValidUntil = request.ValidUntil,
+            CustomerName = request.CustomerName.Trim(),
             CustomerId = request.CustomerId,
             Status = QuotationStatus.Sent,
             Subtotal = build.Subtotal,
@@ -128,14 +129,15 @@ public class QuotationService : IQuotationService
         if (quote is null) return Result<QuotationDto>.Failure("Quotation not found.");
         if (quote.Status == QuotationStatus.Converted)
             return Result<QuotationDto>.Failure("Converted quotations cannot be edited.");
-        if (!await _db.Customers.AnyAsync(c => c.Id == request.CustomerId, ct))
-            return Result<QuotationDto>.Failure("Customer not found.");
+        if (string.IsNullOrWhiteSpace(request.CustomerName))
+            return Result<QuotationDto>.Failure("Customer name is required.");
 
         var build = await BuildLinesAsync(request, ct);
         if (!build.Succeeded) return Result<QuotationDto>.Failure(build.Errors);
 
         quote.Date = request.Date;
         quote.ValidUntil = request.ValidUntil;
+        quote.CustomerName = request.CustomerName.Trim();
         quote.CustomerId = request.CustomerId;
         quote.Subtotal = build.Subtotal;
         quote.Discount = request.Discount;
@@ -188,7 +190,8 @@ public class QuotationService : IQuotationService
     }
 
     private static QuotationDto ToDto(Quotation q) =>
-        new(q.Id, q.Number, q.Date, q.ValidUntil, q.CustomerId, q.Customer?.Name ?? string.Empty,
+        new(q.Id, q.Number, q.Date, q.ValidUntil, q.CustomerId,
+            !string.IsNullOrWhiteSpace(q.CustomerName) ? q.CustomerName : (q.Customer?.Name ?? string.Empty),
             q.Status, q.Subtotal, q.Discount, q.TaxRate, q.TaxAmount, q.Total,
             q.ConvertedSalesInvoiceId, q.ConvertedSalesInvoice?.Number, q.Notes,
             q.Lines.Select(l => new QuotationLineDto(

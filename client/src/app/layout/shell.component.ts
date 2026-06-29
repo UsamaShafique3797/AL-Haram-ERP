@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Location } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { APP_NAV, APP_QUICK_LINKS, QuickLinkDef } from '../core/auth/app-roles';
 import { canAccessRoute } from '../core/auth/role-access';
@@ -8,6 +9,7 @@ import { BranchContextService } from '../core/services/branch-context.service';
 import { CompanyContextService } from '../core/services/company-context.service';
 import { GodownService } from '../core/services/godown.service';
 import { GodownDto } from '../core/models/domain.models';
+import { environment } from '../../environments/environment';
 
 interface NavItem {
   label: string;
@@ -74,11 +76,19 @@ interface NavGroup {
 
       <div class="main">
         <header class="topbar">
-          <button type="button" class="nav-toggle" aria-label="Open menu" (click)="toggleNav()">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M4 6h16M4 12h16M4 18h16"/>
-            </svg>
-          </button>
+          <div class="topbar-left">
+            <button type="button" class="nav-toggle" aria-label="Open menu" (click)="toggleNav()">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </button>
+            <button type="button" class="back-btn" aria-label="Go back" title="Go back" (click)="goBack()">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              <span class="back-label">Back</span>
+            </button>
+          </div>
 
           @if (auth.user()?.canAccessAllBranches) {
             <label class="branch-filter">
@@ -95,6 +105,7 @@ interface NavGroup {
           }
 
           <div class="spacer"></div>
+          <span class="app-version" title="Application version">v{{ appVersion }}</span>
           <div class="user">
             <div class="avatar">{{ initials() }}</div>
             <div class="user-meta">
@@ -114,16 +125,18 @@ interface NavGroup {
   styles: [`
     :host {
       display: block;
+      height: 100vh;
       max-width: 100%;
-      overflow-x: clip;
+      overflow: hidden;
     }
 
     .layout {
       display: flex;
-      min-height: 100vh;
+      align-items: stretch;
+      height: 100vh;
       width: 100%;
       max-width: 100vw;
-      overflow-x: clip;
+      overflow: hidden;
     }
     .sidebar-backdrop {
       display: none;
@@ -131,8 +144,18 @@ interface NavGroup {
       padding: 0;
       cursor: pointer;
     }
-    .sidebar { width: 250px; background: #1f2933; color: #cbd2d9; display: flex; flex-direction: column;
-      padding: 1.1rem .9rem; position: sticky; top: 0; height: 100vh; flex-shrink: 0; z-index: 1001; }
+    .sidebar {
+      width: 250px;
+      background: #1f2933;
+      color: #cbd2d9;
+      display: flex;
+      flex-direction: column;
+      padding: 1.1rem .9rem;
+      height: 100vh;
+      overflow-y: auto;
+      flex-shrink: 0;
+      z-index: 1001;
+    }
     .brand { display: flex; align-items: center; gap: .7rem; padding: .3rem .4rem 1.2rem; }
     .logo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: #fff;
       box-shadow: 0 2px 6px rgba(0,0,0,.25); flex-shrink: 0; }
@@ -184,8 +207,10 @@ interface NavGroup {
       min-width: 0;
       width: 100%;
       max-width: 100%;
-      overflow-x: clip;
+      height: 100vh;
+      overflow: hidden;
     }
+    .topbar-left { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; min-width: 0; }
     .nav-toggle {
       display: none;
       align-items: center;
@@ -200,6 +225,23 @@ interface NavGroup {
       cursor: pointer;
       flex-shrink: 0;
     }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      height: 40px;
+      padding: 0 .75rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: .85rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .back-btn:hover { background: #f3f4f6; color: var(--ink); }
+    .back-btn svg { flex-shrink: 0; }
     .topbar {
       min-height: 62px;
       background: var(--surface);
@@ -212,6 +254,7 @@ interface NavGroup {
       max-width: 100%;
       overflow: hidden;
       flex-wrap: nowrap;
+      flex-shrink: 0;
     }
     .topbar .spacer { flex: 1 1 auto; min-width: 0; }
     .branch-filter { display: flex; align-items: center; gap: .5rem; min-width: 0; flex: 0 1 auto; max-width: min(280px, 40vw); }
@@ -233,6 +276,8 @@ interface NavGroup {
       white-space: nowrap;
       flex-shrink: 1;
     }
+    .app-version { font-size: .72rem; font-weight: 600; color: var(--muted); background: var(--bg, #f3f4f6);
+      border: 1px solid var(--line); border-radius: 999px; padding: .15rem .55rem; white-space: nowrap; flex-shrink: 0; }
     .user { display: flex; align-items: center; gap: .5rem; min-width: 0; flex: 0 1 auto; max-width: 100%; overflow: hidden; }
     .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--brand); color: #fff;
       display: grid; place-items: center; font-weight: 700; font-size: .8rem; flex-shrink: 0; }
@@ -240,15 +285,21 @@ interface NavGroup {
     .user-meta strong { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .user-meta span { font-size: .72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
     .logout-btn { flex-shrink: 0; }
-    .content { padding: 1.75rem; flex: 1; min-width: 0; max-width: 100%; overflow-x: clip; }
+    .content { padding: 1.75rem; flex: 1; min-width: 0; max-width: 100%; overflow-y: auto; overflow-x: clip; }
 
     @media (max-width: 900px) {
-      .layout { display: block; }
+      :host { height: auto; overflow: visible; }
+      .layout { display: block; height: auto; overflow: visible; }
+      .main { height: auto; overflow: visible; }
+      .content { overflow-y: visible; }
       .nav-toggle { display: inline-flex; }
       .sidebar {
         position: fixed;
         left: 0;
         top: 0;
+        bottom: 0;
+        height: 100vh;
+        min-height: 100dvh;
         transform: translateX(-105%);
         transition: transform .25s ease, visibility .25s;
         box-shadow: none;
@@ -279,10 +330,12 @@ interface NavGroup {
         align-items: center;
         padding: .5rem .75rem;
       }
-      .nav-toggle { grid-area: toggle; }
+      .topbar-left { grid-area: toggle; }
+      .nav-toggle { display: inline-flex; }
       .branch-filter,
       .branch-badge { grid-area: branch; min-width: 0; max-width: 100%; }
       .topbar .spacer { display: none; }
+      .app-version { display: none; }
       .user { grid-area: user; justify-self: end; max-width: 100%; }
     }
 
@@ -290,6 +343,8 @@ interface NavGroup {
       .user-meta { display: none; }
       .branch-label { display: none; }
       .logout-btn { padding: .35rem .55rem; }
+      .back-label { display: none; }
+      .back-btn { padding: 0; width: 40px; justify-content: center; }
     }
   `],
 })
@@ -300,9 +355,11 @@ export class ShellComponent implements OnInit {
   branchCtx = inject(BranchContextService);
   private godownService = inject(GodownService);
   private router = inject(Router);
+  private location = inject(Location);
 
   godowns = signal<GodownDto[]>([]);
   navOpen = signal(false);
+  readonly appVersion = environment.version;
 
   visibleNav = computed((): NavGroup[] => {
     const roles = this.auth.user()?.roles ?? [];
@@ -334,6 +391,10 @@ export class ShellComponent implements OnInit {
     if (this.auth.user()?.canAccessAllBranches) {
       this.godownService.getAll().subscribe((list) => this.godowns.set(list));
     }
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 
   toggleNav(): void {

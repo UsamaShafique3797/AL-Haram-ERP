@@ -94,10 +94,28 @@ public class SupplierLedgerService : ISupplierLedgerService
             .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Total), Paid = g.Sum(x => x.PaidAmount) })
             .ToDictionaryAsync(x => x.Id, ct);
 
-        var paymentTotals = await _db.SupplierPayments
-            .GroupBy(r => r.SupplierId)
-            .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Amount) })
-            .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
+        var branchScoped = _branch.EffectiveGodownId is not null;
+
+        // A branch view only counts payments allocated to that branch's invoices so it stays
+        // consistent with the open-bill view; the company-wide view uses the full payment amount.
+        Dictionary<Guid, decimal> paidTotals;
+        if (branchScoped)
+        {
+            var branchInvoiceIds = _db.PurchaseInvoices.ForBranch(_branch).Select(i => i.Id);
+            paidTotals = await _db.PaymentAllocations
+                .Where(a => branchInvoiceIds.Contains(a.PurchaseInvoiceId))
+                .Join(_db.PurchaseInvoices, a => a.PurchaseInvoiceId, i => i.Id, (a, i) => new { i.SupplierId, a.Amount })
+                .GroupBy(x => x.SupplierId)
+                .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Amount) })
+                .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
+        }
+        else
+        {
+            paidTotals = await _db.SupplierPayments
+                .GroupBy(r => r.SupplierId)
+                .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Amount) })
+                .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
+        }
 
         var returnTotals = await _db.PurchaseReturns
             .ForBranch(_branch)
@@ -105,14 +123,13 @@ public class SupplierLedgerService : ISupplierLedgerService
             .Select(g => new { Id = g.Key, Total = g.Sum(x => x.Total) })
             .ToDictionaryAsync(x => x.Id, x => x.Total, ct);
 
-        var branchScoped = _branch.EffectiveGodownId is not null;
         var result = new List<PayableDto>();
         foreach (var s in suppliers)
         {
             var invSummary = invoiceTotals.GetValueOrDefault(s.Id);
             decimal invoiced = invSummary?.Total ?? 0m;
             decimal paidAtPurchase = invSummary?.Paid ?? 0m;
-            decimal paid = branchScoped ? 0m : paymentTotals.GetValueOrDefault(s.Id);
+            decimal paid = paidTotals.GetValueOrDefault(s.Id);
             decimal returned = returnTotals.GetValueOrDefault(s.Id);
             var opening = branchScoped ? 0m : s.OpeningBalance;
 

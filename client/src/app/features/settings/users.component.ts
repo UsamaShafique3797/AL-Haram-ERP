@@ -81,12 +81,12 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
               <div class="field">
                 <label>Branch</label>
                 <select formControlName="godownId">
-                  <option value="">All branches (admin)</option>
+                  <option value="">All branches (Administrator)</option>
                   @for (g of godowns(); track g.id) {
                     <option [value]="g.id">{{ g.name }}</option>
                   }
                 </select>
-                <span class="hint">Leave as “All branches” for company admin. Pick one branch for a branch owner/manager.</span>
+                <span class="hint">Administrators see all branches (leave as “All branches”). A Manager or branch staff must be assigned one branch — they will only see that branch’s data.</span>
               </div>
               <div class="field">
                 <label>Roles</label>

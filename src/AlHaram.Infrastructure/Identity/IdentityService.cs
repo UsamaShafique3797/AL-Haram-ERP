@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using AlHaram.Application.Auth;
 using AlHaram.Application.Common.Models;
+using AlHaram.Domain.Constants;
 using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -183,8 +184,11 @@ public class IdentityService : IIdentityService
         return (new JwtSecurityTokenHandler().WriteToken(jwt), expires);
     }
 
-    private static UserDto ToDto(ApplicationUser user, IList<string> roles) =>
-        new(
+    private static UserDto ToDto(ApplicationUser user, IList<string> roles)
+    {
+        // Only Administrators manage the whole company; everyone else is branch-scoped.
+        var elevated = roles.Contains(AppRoles.Administrator);
+        return new(
             user.Id,
             user.UserName ?? string.Empty,
             user.FullName,
@@ -192,6 +196,7 @@ public class IdentityService : IIdentityService
             roles,
             user.GodownId,
             user.Godown?.Name,
-            user.GodownId is null,
+            user.GodownId is null || elevated,
             user.IsActive);
+    }
 }

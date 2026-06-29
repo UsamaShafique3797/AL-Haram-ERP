@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CustomerService } from '../../core/services/customer.service';
 import { ItemService } from '../../core/services/item.service';
@@ -16,7 +17,7 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
 @Component({
   selector: 'app-quotations',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe, GridSearchBarComponent],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, RouterLink, GridSearchBarComponent],
   template: `
     <div class="row" style="align-items:center">
       <div>
@@ -45,13 +46,14 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
         <tbody>
           @for (q of filteredRows(); track q.id) {
             <tr>
-              <td>{{ q.number }}</td>
+              <td><a [routerLink]="['/sales/quotations', q.id, 'print']">{{ q.number }}</a></td>
               <td>{{ q.date | date:'mediumDate' }}</td>
               <td>{{ q.customerName }}</td>
               <td>{{ q.validUntil ? (q.validUntil | date:'mediumDate') : '—' }}</td>
               <td>{{ statusLabel(q.status) }}</td>
               <td>{{ money(q.total) }}</td>
               <td style="text-align:right; white-space:nowrap">
+                <a class="btn btn-ghost btn-sm" [routerLink]="['/sales/quotations', q.id, 'print']">PDF</a>
                 @if (q.status !== convertedStatus) {
                   @if (access.canWrite('sales/quotations')) {
                     <button class="btn btn-ghost btn-sm" (click)="edit(q)">Edit</button>
@@ -80,10 +82,11 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
               <div class="row">
                 <div class="field" style="flex:2">
                   <label>Customer</label>
-                  <select formControlName="customerId">
-                    <option value="">— select —</option>
-                    @for (c of customers(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
-                  </select>
+                  <input type="text" formControlName="customerName" list="quote-customer-list"
+                         placeholder="Type customer name…" autocomplete="off" />
+                  <datalist id="quote-customer-list">
+                    @for (c of customers(); track c.id) { <option [value]="c.name"></option> }
+                  </datalist>
                 </div>
                 <div class="field" style="flex:1"><label>Date</label><input type="date" formControlName="date" /></div>
                 <div class="field" style="flex:1"><label>Valid until</label><input type="date" formControlName="validUntil" /></div>
@@ -159,6 +162,7 @@ export class QuotationsComponent implements OnInit {
   private quotationService = inject(QuotationService);
   private customerService = inject(CustomerService);
   private itemService = inject(ItemService);
+  private router = inject(Router);
 
   quotations = signal<QuotationDto[]>([]);
   searchTerm = signal('');
@@ -177,7 +181,7 @@ export class QuotationsComponent implements OnInit {
   totalValue = computed(() => this.quotations().reduce((s, q) => s + q.total, 0));
 
   form = this.fb.nonNullable.group({
-    customerId: ['', Validators.required],
+    customerName: ['', Validators.required],
     date: [new Date().toISOString().substring(0, 10), Validators.required],
     validUntil: [''],
     discount: [0, [Validators.min(0)]],
@@ -271,7 +275,7 @@ export class QuotationsComponent implements OnInit {
     this.formError.set(null);
     this.lines.clear();
     this.form.reset({
-      customerId: '',
+      customerName: '',
       date: new Date().toISOString().substring(0, 10),
       validUntil: '',
       discount: 0,
@@ -287,7 +291,7 @@ export class QuotationsComponent implements OnInit {
     this.formError.set(null);
     this.lines.clear();
     this.form.reset({
-      customerId: q.customerId,
+      customerName: q.customerName,
       date: q.date.substring(0, 10),
       validUntil: q.validUntil ? q.validUntil.substring(0, 10) : '',
       discount: q.discount,
@@ -314,7 +318,7 @@ export class QuotationsComponent implements OnInit {
     const payload = {
       date: v.date,
       validUntil: v.validUntil || null,
-      customerId: v.customerId,
+      customerName: (v.customerName || '').trim(),
       discount: Number(v.discount || 0),
       taxRate: Number(v.taxRate || 0),
       notes: v.notes || null,
@@ -326,14 +330,18 @@ export class QuotationsComponent implements OnInit {
         discount: Number(l.discount || 0),
       })),
     };
+    const editing = !!this.editingId;
     const req = this.editingId
       ? this.quotationService.update(this.editingId, payload)
       : this.quotationService.create(payload);
     req.subscribe({
-      next: () => {
+      next: (saved) => {
         this.loading.set(false);
         this.close();
         this.load();
+        if (!editing && saved?.id) {
+          this.router.navigate(['/sales/quotations', saved.id, 'print']);
+        }
       },
       error: (err) => {
         this.loading.set(false);

@@ -26,7 +26,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> Create([FromBody] SaveUnitRequest request, CancellationToken ct)
     {
         var created = await _units.CreateAsync(request, ct);
@@ -34,7 +34,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveUnitRequest request, CancellationToken ct)
     {
         var updated = await _units.UpdateAsync(id, request, ct);
@@ -42,7 +42,7 @@ public class UnitsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _units.DeleteAsync(id, ct);

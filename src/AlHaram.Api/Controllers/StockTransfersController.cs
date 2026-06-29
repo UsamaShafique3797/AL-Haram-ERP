@@ -26,7 +26,7 @@ public class StockTransfersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Create([FromBody] SaveStockTransferRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);
@@ -34,7 +34,7 @@ public class StockTransfersController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveStockTransferRequest request, CancellationToken ct)
     {
         var result = await _service.UpdateAsync(id, request, ct);
@@ -42,7 +42,7 @@ public class StockTransfersController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _service.DeleteAsync(id, ct);
@@ -50,7 +50,7 @@ public class StockTransfersController : ControllerBase
     }
 
     [HttpPost("{id:guid}/complete")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Complete(Guid id, CancellationToken ct)
     {
         var result = await _service.CompleteAsync(id, ct);

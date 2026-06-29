@@ -26,7 +26,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> Create([FromBody] SaveCustomerRequest request, CancellationToken ct)
     {
         var created = await _customers.CreateAsync(request, ct);
@@ -34,7 +34,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveCustomerRequest request, CancellationToken ct)
     {
         var updated = await _customers.UpdateAsync(id, request, ct);
@@ -42,7 +42,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _customers.DeleteAsync(id, ct);

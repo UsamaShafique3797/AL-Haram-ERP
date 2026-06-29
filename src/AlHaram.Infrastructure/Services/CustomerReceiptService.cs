@@ -1,7 +1,9 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Common.Models;
 using AlHaram.Application.Sales;
 using AlHaram.Domain.Entities;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,14 +12,21 @@ namespace AlHaram.Infrastructure.Services;
 public class CustomerReceiptService : ICustomerReceiptService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public CustomerReceiptService(AppDbContext db) => _db = db;
+    public CustomerReceiptService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<CustomerReceiptDto>> GetAllAsync(Guid? customerId = null, CancellationToken ct = default)
     {
         var query = _db.CustomerReceipts
+            .ForBranch(_branch)
             .Include(r => r.Customer)
             .Include(r => r.PaymentAccount)
+            .Include(r => r.Godown)
             .Include(r => r.Allocations).ThenInclude(a => a.SalesInvoice)
             .AsQueryable();
 
@@ -37,6 +46,7 @@ public class CustomerReceiptService : ICustomerReceiptService
         var receipt = await _db.CustomerReceipts
             .Include(r => r.Customer)
             .Include(r => r.PaymentAccount)
+            .Include(r => r.Godown)
             .Include(r => r.Allocations).ThenInclude(a => a.SalesInvoice)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
         return receipt is null ? null : ToDto(receipt);
@@ -74,11 +84,18 @@ public class CustomerReceiptService : ICustomerReceiptService
         }
         if (errors.Count > 0) return Result<CustomerReceiptDto>.Failure(errors.Distinct().ToArray());
 
+        var godownId = await ResolveGodownAsync(request.GodownId, ct);
+        if (godownId is null)
+            return Result<CustomerReceiptDto>.Failure("Please select a branch for this receipt.");
+        if (!_branch.CanUseGodown(godownId.Value))
+            return Result<CustomerReceiptDto>.Failure("You cannot record a receipt for that branch.");
+
         var receipt = new CustomerReceipt
         {
             Number = await NextReceiptNumberAsync(ct),
             Date = request.Date,
             CustomerId = request.CustomerId,
+            GodownId = godownId,
             PaymentAccountId = request.PaymentAccountId,
             Mode = request.Mode,
             Amount = request.Amount,
@@ -96,6 +113,7 @@ public class CustomerReceiptService : ICustomerReceiptService
         _db.CashBankTransactions.Add(new CashBankTransaction
         {
             PaymentAccountId = request.PaymentAccountId,
+            GodownId = godownId,
             Date = request.Date,
             Source = CashBankSource.SalesReceipt,
             Amount = request.Amount,
@@ -115,6 +133,18 @@ public class CustomerReceiptService : ICustomerReceiptService
         return $"RCT-{count + 1:D5}";
     }
 
+    /// <summary>
+    /// Branch-locked users are forced to their own godown. Admins use the branch they are
+    /// currently filtered to, else the branch chosen on the form, else the default godown.
+    /// </summary>
+    private async Task<Guid?> ResolveGodownAsync(Guid? requested, CancellationToken ct)
+    {
+        if (_branch.EffectiveGodownId is Guid eff) return eff;
+        if (requested is Guid g) return g;
+        return await _db.Godowns.Where(x => x.IsDefault).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct)
+            ?? await _db.Godowns.OrderBy(x => x.Name).Select(x => (Guid?)x.Id).FirstOrDefaultAsync(ct);
+    }
+
     private static CustomerReceiptDto ToDto(CustomerReceipt r)
     {
         var allocs = r.Allocations
@@ -127,6 +157,7 @@ public class CustomerReceiptService : ICustomerReceiptService
             r.CustomerId, r.Customer?.Name ?? string.Empty,
             r.PaymentAccountId, r.PaymentAccount?.Name ?? string.Empty,
             r.Mode, r.Amount, allocated, r.Amount - allocated,
-            r.Reference, r.Notes, allocs);
+            r.Reference, r.Notes, allocs,
+            r.GodownId, r.Godown?.Name);
     }
 }

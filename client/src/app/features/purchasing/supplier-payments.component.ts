@@ -7,8 +7,11 @@ import { PaymentAccountService } from '../../core/services/payment-account.servi
 import { SupplierPaymentService } from '../../core/services/supplier-payment.service';
 import { PurchaseInvoiceService } from '../../core/services/purchase-invoice.service';
 import { AccessService } from '../../core/services/access.service';
+import { AuthService } from '../../core/services/auth.service';
+import { BranchContextService } from '../../core/services/branch-context.service';
+import { GodownService } from '../../core/services/godown.service';
 import {
-  OpenPurchaseInvoiceDto, PaymentAccountDto, PaymentMode, PaymentModeLabels,
+  GodownDto, OpenPurchaseInvoiceDto, PaymentAccountDto, PaymentMode, PaymentModeLabels,
   SupplierDto, SupplierPaymentDto,
 } from '../../core/models/domain.models';
 
@@ -89,6 +92,14 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
                     @for (a of paymentAccounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
                   </select>
                 </div>
+                @if (showBranch()) {
+                  <div class="field" style="flex:1">
+                    <label>Branch</label>
+                    <select formControlName="godownId">
+                      @for (g of godowns(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
+                    </select>
+                  </div>
+                }
               </div>
 
               <div class="row">
@@ -157,6 +168,9 @@ export class SupplierPaymentsComponent implements OnInit {
   private paymentAccountService = inject(PaymentAccountService);
   private paymentService = inject(SupplierPaymentService);
   private invoiceService = inject(PurchaseInvoiceService);
+  private auth = inject(AuthService);
+  private branchContext = inject(BranchContextService);
+  private godownService = inject(GodownService);
 
   payments = signal<SupplierPaymentDto[]>([]);
   searchTerm = signal('');
@@ -164,6 +178,8 @@ export class SupplierPaymentsComponent implements OnInit {
   suppliers = signal<SupplierDto[]>([]);
   paymentAccounts = signal<PaymentAccountDto[]>([]);
   openInvoices = signal<OpenPurchaseInvoiceDto[]>([]);
+  godowns = signal<GodownDto[]>([]);
+  showBranch = computed(() => !!this.auth.user()?.canAccessAllBranches);
   ready = signal(false);
 
   showForm = signal(false);
@@ -180,6 +196,7 @@ export class SupplierPaymentsComponent implements OnInit {
     amount: [0, [Validators.required, Validators.min(0.01)]],
     reference: [''],
     notes: [''],
+    godownId: [''],
     allocations: this.fb.array<FormGroup>([]),
   });
 
@@ -200,9 +217,11 @@ export class SupplierPaymentsComponent implements OnInit {
     forkJoin({
       suppliers: this.supplierService.getAll(),
       accounts: this.paymentAccountService.getAll(),
-    }).subscribe(({ suppliers, accounts }) => {
+      godowns: this.godownService.getAllUnscoped(),
+    }).subscribe(({ suppliers, accounts, godowns }) => {
       this.suppliers.set(suppliers.filter((s) => s.isActive));
       this.paymentAccounts.set(accounts.filter((a) => a.isActive));
+      this.godowns.set(godowns.filter((g) => g.isActive));
       this.ready.set(true);
     });
     this.form.valueChanges.subscribe(() => this.formTick.update((n) => n + 1));
@@ -233,8 +252,13 @@ export class SupplierPaymentsComponent implements OnInit {
       amount: 0,
       reference: '',
       notes: '',
+      godownId: this.defaultBranchId(),
     });
     this.showForm.set(true);
+  }
+
+  private defaultBranchId(): string {
+    return this.branchContext.selectedGodownId() ?? this.godowns().find((g) => g.isDefault)?.id ?? this.godowns()[0]?.id ?? '';
   }
 
   onSupplierChange(): void {
@@ -292,6 +316,7 @@ export class SupplierPaymentsComponent implements OnInit {
       reference: v.reference || null,
       notes: v.notes || null,
       allocations: allocs,
+      godownId: v.godownId || null,
     }).subscribe({
       next: () => { this.loading.set(false); this.close(); this.load(); },
       error: (err) => {

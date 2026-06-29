@@ -26,7 +26,7 @@ public class QuotationsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> Create([FromBody] SaveQuotationRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);
@@ -34,7 +34,7 @@ public class QuotationsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveQuotationRequest request, CancellationToken ct)
     {
         var result = await _service.UpdateAsync(id, request, ct);
@@ -42,7 +42,7 @@ public class QuotationsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _service.DeleteAsync(id, ct);
@@ -50,7 +50,7 @@ public class QuotationsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/convert")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> ConvertToInvoice(Guid id, [FromBody] SaveSalesInvoiceRequest request, CancellationToken ct)
     {
         var result = await _service.ConvertToInvoiceAsync(id, request, ct);

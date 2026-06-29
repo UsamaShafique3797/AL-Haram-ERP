@@ -80,6 +80,14 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
                       Bill PDF
                     </button>
                   }
+                  @if (access.canWrite('sales/receipts')) {
+                    <a class="btn btn-sm btn-settle" [routerLink]="['/sales/receipts']" [queryParams]="{ customerId: r.customerId, new: '1' }">
+                      <svg class="btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>
+                      </svg>
+                      Settle
+                    </a>
+                  }
                 }
               </td>
             </tr>
@@ -98,10 +106,12 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
     .btn-ico { width: .9rem; height: .9rem; flex-shrink: 0; }
     .btn-ledger { background: #1d4ed8; color: #fff; border-color: #1e40af; text-decoration: none; }
     .btn-ledger:hover { background: #1e40af; border-color: #1e3a8a; color: #fff; }
+    .btn-settle { background: #047857; color: #fff; border-color: #065f46; text-decoration: none; }
+    .btn-settle:hover { background: #065f46; border-color: #064e3b; color: #fff; }
     .btn-remind { background: #b91c1c; color: #fff; border-color: #991b1b; }
     .btn-remind:hover:not(:disabled) { background: #991b1b; border-color: #7f1d1d; color: #fff; }
-    .btn-bill { background: #047857; color: #fff; border-color: #065f46; }
-    .btn-bill:hover:not(:disabled) { background: #065f46; border-color: #064e3b; color: #fff; }
+    .btn-bill { background: #7c3aed; color: #fff; border-color: #6d28d9; }
+    .btn-bill:hover:not(:disabled) { background: #6d28d9; border-color: #5b21b6; color: #fff; }
     .btn-remind:disabled, .btn-bill:disabled { opacity: .55; cursor: not-allowed; }
     .wa-info { background: #eef8ef; color: #1e6b3a; border: 1px solid #b7e4c7; margin-bottom: 1rem; }
     .wa-open-btn { margin-top: .65rem; }

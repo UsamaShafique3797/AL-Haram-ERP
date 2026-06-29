@@ -5,7 +5,9 @@ namespace AlHaram.Domain.Constants;
 /// </summary>
 public static class AppRoles
 {
-    public const string Owner = "Owner";
+    /// <summary>Full company-wide access across every branch (godown).</summary>
+    public const string Administrator = "Administrator";
+    /// <summary>Branch-level access — limited to the godown the user is assigned to.</summary>
     public const string Manager = "Manager";
     public const string Salesman = "Salesman";
     public const string StoreKeeper = "StoreKeeper";
@@ -13,6 +15,6 @@ public static class AppRoles
 
     public static readonly string[] All =
     {
-        Owner, Manager, Salesman, StoreKeeper, Accountant
+        Administrator, Manager, Salesman, StoreKeeper, Accountant
     };
 }

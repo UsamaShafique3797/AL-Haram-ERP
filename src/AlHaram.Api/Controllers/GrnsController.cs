@@ -26,7 +26,7 @@ public class GrnsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Create([FromBody] SaveGrnRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);

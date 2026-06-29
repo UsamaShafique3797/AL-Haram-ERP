@@ -26,7 +26,7 @@ public class SalesReturnsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> Create([FromBody] SaveSalesReturnRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);

@@ -24,6 +24,16 @@ public static class DbSeeder
         var roleManager = sp.GetRequiredService<RoleManager<ApplicationRole>>();
         var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
 
+        // Migrate the legacy "Owner" role to "Administrator". Renaming the role
+        // record keeps every existing user-role assignment intact (they reference
+        // the role id, not its name).
+        if (!await roleManager.RoleExistsAsync(AppRoles.Administrator)
+            && await roleManager.FindByNameAsync("Owner") is { } legacyOwner)
+        {
+            legacyOwner.Name = AppRoles.Administrator;
+            await roleManager.UpdateAsync(legacyOwner);
+        }
+
         foreach (var role in AppRoles.All)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -42,7 +52,7 @@ public static class DbSeeder
             };
             var result = await userManager.CreateAsync(admin, DefaultAdminPassword);
             if (result.Succeeded)
-                await userManager.AddToRoleAsync(admin, AppRoles.Owner);
+                await userManager.AddToRoleAsync(admin, AppRoles.Administrator);
         }
 
         if (!await db.Companies.AnyAsync())

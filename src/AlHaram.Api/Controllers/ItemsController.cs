@@ -26,7 +26,7 @@ public class ItemsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> Create([FromBody] SaveItemRequest request, CancellationToken ct)
     {
         var result = await _items.CreateAsync(request, ct);
@@ -35,7 +35,7 @@ public class ItemsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.StoreKeeper}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveItemRequest request, CancellationToken ct)
     {
         var result = await _items.UpdateAsync(id, request, ct);
@@ -44,7 +44,7 @@ public class ItemsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _items.DeleteAsync(id, ct);

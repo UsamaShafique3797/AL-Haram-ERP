@@ -26,7 +26,7 @@ public class SuppliersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Create([FromBody] SaveSupplierRequest request, CancellationToken ct)
     {
         var created = await _suppliers.CreateAsync(request, ct);
@@ -34,7 +34,7 @@ public class SuppliersController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveSupplierRequest request, CancellationToken ct)
     {
         var updated = await _suppliers.UpdateAsync(id, request, ct);
@@ -42,7 +42,7 @@ public class SuppliersController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _suppliers.DeleteAsync(id, ct);

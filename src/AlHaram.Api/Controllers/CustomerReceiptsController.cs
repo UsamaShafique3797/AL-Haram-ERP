@@ -26,7 +26,7 @@ public class CustomerReceiptsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman},{AppRoles.Accountant}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman},{AppRoles.Accountant}")]
     public async Task<IActionResult> Create([FromBody] SaveCustomerReceiptRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);

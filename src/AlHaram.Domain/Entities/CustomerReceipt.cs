@@ -16,6 +16,10 @@ public class CustomerReceipt : BaseEntity
     public Guid CustomerId { get; set; }
     public Customer? Customer { get; set; }
 
+    /// <summary>Branch (godown) this receipt was collected at. Null only for legacy rows.</summary>
+    public Guid? GodownId { get; set; }
+    public Godown? Godown { get; set; }
+
     public Guid PaymentAccountId { get; set; }
     public PaymentAccount? PaymentAccount { get; set; }
 

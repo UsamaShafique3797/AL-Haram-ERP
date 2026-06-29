@@ -12,7 +12,9 @@ public record ExpenseDto(
     Guid PaymentAccountId,
     string PaymentAccountName,
     string? Notes,
-    string? AttachmentPath);
+    string? AttachmentPath,
+    Guid? GodownId = null,
+    string? GodownName = null);
 
 public record SaveExpenseRequest(
     DateTime Date,
@@ -20,7 +22,8 @@ public record SaveExpenseRequest(
     decimal Amount,
     Guid PaymentAccountId,
     string? Notes,
-    string? AttachmentPath);
+    string? AttachmentPath,
+    Guid? GodownId = null);
 
 public interface IExpenseService
 {

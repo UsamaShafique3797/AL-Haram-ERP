@@ -27,7 +27,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Accountant}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Accountant}")]
     public async Task<IActionResult> Create([FromBody] SaveExpenseRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);
@@ -35,7 +35,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Accountant}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Accountant}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveExpenseRequest request, CancellationToken ct)
     {
         var result = await _service.UpdateAsync(id, request, ct);
@@ -43,7 +43,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _service.DeleteAsync(id, ct);

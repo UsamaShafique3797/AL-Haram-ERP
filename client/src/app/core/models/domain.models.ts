@@ -431,6 +431,8 @@ export interface CustomerReceiptDto {
   reference?: string | null;
   notes?: string | null;
   allocations: ReceiptAllocationDto[];
+  godownId?: string | null;
+  godownName?: string | null;
 }
 
 export interface SaveReceiptAllocationRequest {
@@ -447,6 +449,7 @@ export interface SaveCustomerReceiptRequest {
   reference?: string | null;
   notes?: string | null;
   allocations: SaveReceiptAllocationRequest[];
+  godownId?: string | null;
 }
 
 export interface CustomerLedgerEntryDto {
@@ -581,6 +584,8 @@ export interface SupplierPaymentDto {
   reference?: string | null;
   notes?: string | null;
   allocations: PaymentAllocationDto[];
+  godownId?: string | null;
+  godownName?: string | null;
 }
 
 export interface SavePaymentAllocationRequest {
@@ -597,6 +602,7 @@ export interface SaveSupplierPaymentRequest {
   reference?: string | null;
   notes?: string | null;
   allocations: SavePaymentAllocationRequest[];
+  godownId?: string | null;
 }
 
 export interface PurchaseReturnLineDto {
@@ -703,6 +709,8 @@ export interface ExpenseDto {
   paymentAccountName: string;
   notes?: string | null;
   attachmentPath?: string | null;
+  godownId?: string | null;
+  godownName?: string | null;
 }
 
 export interface SaveExpenseRequest {
@@ -712,6 +720,7 @@ export interface SaveExpenseRequest {
   paymentAccountId: string;
   notes?: string | null;
   attachmentPath?: string | null;
+  godownId?: string | null;
 }
 
 export interface CashBookEntryDto {
@@ -910,15 +919,15 @@ export interface QuotationLineDto {
   quantity: number; conversionFactor: number; baseQuantity: number; rate: number; discount: number; lineTotal: number;
 }
 export interface QuotationDto {
-  id: string; number: string; date: string; validUntil?: string | null; customerId: string; customerName: string;
+  id: string; number: string; date: string; validUntil?: string | null; customerId?: string | null; customerName: string;
   status: QuotationStatus; subtotal: number; discount: number; taxRate: number; taxAmount: number; total: number;
   convertedSalesInvoiceId?: string | null; convertedSalesInvoiceNumber?: string | null;
   notes?: string | null; lines: QuotationLineDto[];
 }
 export interface SaveQuotationLineRequest { itemId: string; unitId: string; quantity: number; rate: number; discount: number; }
 export interface SaveQuotationRequest {
-  date: string; validUntil?: string | null; customerId: string; discount: number; taxRate: number;
-  notes?: string | null; lines: SaveQuotationLineRequest[];
+  date: string; validUntil?: string | null; customerName: string; discount: number; taxRate: number;
+  notes?: string | null; lines: SaveQuotationLineRequest[]; customerId?: string | null;
 }
 
 export interface StockTransferLineDto {

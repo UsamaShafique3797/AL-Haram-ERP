@@ -14,6 +14,11 @@ export class GodownService {
     return this.http.get<GodownDto[]>(this.api);
   }
 
+  /** All godowns regardless of the user's branch — used for transfer destinations. */
+  getAllUnscoped(): Observable<GodownDto[]> {
+    return this.http.get<GodownDto[]>(`${this.api}/all`);
+  }
+
   create(request: SaveGodownRequest): Observable<GodownDto> {
     return this.http.post<GodownDto>(this.api, request);
   }

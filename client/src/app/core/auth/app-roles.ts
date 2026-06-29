@@ -1,6 +1,6 @@
 /** Built-in roles — keep in sync with backend AppRoles.cs */
 export const AppRole = {
-  Owner: 'Owner',
+  Administrator: 'Administrator',
   Manager: 'Manager',
   Salesman: 'Salesman',
   StoreKeeper: 'StoreKeeper',
@@ -10,14 +10,15 @@ export const AppRole = {
 export type AppRoleName = (typeof AppRole)[keyof typeof AppRole];
 
 export const ALL_APP_ROLES: readonly AppRoleName[] = [
-  AppRole.Owner,
+  AppRole.Administrator,
   AppRole.Manager,
   AppRole.Salesman,
   AppRole.StoreKeeper,
   AppRole.Accountant,
 ];
 
-const O = AppRole.Owner;
+// Administrator has full company-wide access (all branches).
+const O = AppRole.Administrator;
 const M = AppRole.Manager;
 const S = AppRole.Salesman;
 const K = AppRole.StoreKeeper;
@@ -152,9 +153,6 @@ export interface QuickLinkDef {
 /** High-frequency daily actions — shown in sidebar and on dashboard. */
 export const APP_QUICK_LINKS: QuickLinkDef[] = [
   { label: 'Invoices', actionLabel: 'New invoice', path: '/sales/invoices', routeKey: 'sales/invoices', icon: '↗', primary: true, openNew: true },
-  { label: 'Receipts', actionLabel: 'Record receipt', path: '/sales/receipts', routeKey: 'sales/receipts', icon: '₨', primary: true, openNew: true },
-  { label: 'Receivables', actionLabel: 'Receivables', path: '/sales/receivables', routeKey: 'sales/receivables', icon: '◷' },
-  { label: 'Customers', actionLabel: 'Customers', path: '/parties/customers', routeKey: 'parties/customers', icon: '☺' },
 ];
 
 export const APP_NAV: NavGroupDef[] = [

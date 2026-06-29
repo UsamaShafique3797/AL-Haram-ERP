@@ -1,4 +1,6 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Finance;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,8 +9,13 @@ namespace AlHaram.Infrastructure.Services;
 public class DayBookService : IDayBookService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public DayBookService(AppDbContext db) => _db = db;
+    public DayBookService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<DayBookDto> GetForDateAsync(DateTime date, CancellationToken ct = default)
     {
@@ -18,6 +25,7 @@ public class DayBookService : IDayBookService
         var txns = await _db.CashBankTransactions
             .Include(t => t.PaymentAccount)
             .Where(t => t.Date >= dayStart && t.Date <= dayEnd)
+            .ForBranch(_branch)
             .OrderBy(t => t.PaymentAccount!.Name)
             .ThenBy(t => t.CreatedAt)
             .ToListAsync(ct);

@@ -37,8 +37,6 @@ import { CompanyContextService } from '../../core/services/company-context.servi
             {{ loading() ? 'Signing in…' : 'Sign in' }}
           </button>
         </form>
-
-        <p class="hint">Default admin: <strong>admin</strong> / <strong>Admin&#64;123</strong></p>
       </div>
     </div>
   `,
@@ -75,8 +73,8 @@ export class LoginComponent {
   error = signal<string | null>(null);
 
   form = this.fb.nonNullable.group({
-    userName: ['admin', Validators.required],
-    password: ['Admin@123', Validators.required],
+    userName: ['', Validators.required],
+    password: ['', Validators.required],
   });
 
   submit(): void {

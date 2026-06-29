@@ -27,7 +27,7 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Create([FromBody] SavePurchaseOrderRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);
@@ -35,7 +35,7 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SavePurchaseOrderRequest request, CancellationToken ct)
     {
         var result = await _service.UpdateAsync(id, request, ct);
@@ -43,7 +43,7 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _service.DeleteAsync(id, ct);
@@ -51,7 +51,7 @@ public class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPost("{id:guid}/status")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] PurchaseOrderStatus status, CancellationToken ct)
     {
         var result = await _service.UpdateStatusAsync(id, status, ct);

@@ -40,4 +40,16 @@ public static class BranchQueryExtensions
 
     public static IQueryable<Godown> ForBranch(this IQueryable<Godown> q, IBranchScope b) =>
         b.EffectiveGodownId is Guid g ? q.Where(x => x.Id == g) : q;
+
+    public static IQueryable<CashBankTransaction> ForBranch(this IQueryable<CashBankTransaction> q, IBranchScope b) =>
+        b.EffectiveGodownId is Guid g ? q.Where(x => x.GodownId == g) : q;
+
+    public static IQueryable<CustomerReceipt> ForBranch(this IQueryable<CustomerReceipt> q, IBranchScope b) =>
+        b.EffectiveGodownId is Guid g ? q.Where(x => x.GodownId == g) : q;
+
+    public static IQueryable<SupplierPayment> ForBranch(this IQueryable<SupplierPayment> q, IBranchScope b) =>
+        b.EffectiveGodownId is Guid g ? q.Where(x => x.GodownId == g) : q;
+
+    public static IQueryable<Expense> ForBranch(this IQueryable<Expense> q, IBranchScope b) =>
+        b.EffectiveGodownId is Guid g ? q.Where(x => x.GodownId == g) : q;
 }

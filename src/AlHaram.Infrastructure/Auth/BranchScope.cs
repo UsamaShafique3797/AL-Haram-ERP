@@ -1,4 +1,5 @@
 using AlHaram.Application.Common;
+using AlHaram.Domain.Constants;
 using Microsoft.AspNetCore.Http;
 
 namespace AlHaram.Infrastructure.Auth;
@@ -13,15 +14,27 @@ public class BranchScope : IBranchScope
 
     public Guid? UserGodownId => ParseClaimGodown();
 
-    public bool CanAccessAllBranches => UserGodownId is null;
+    /// <summary>
+    /// Administrators manage the whole company across every branch.
+    /// All other roles (including Manager) are locked to their assigned godown.
+    /// </summary>
+    private bool IsElevated =>
+        _http.HttpContext?.User?.IsInRole(AppRoles.Administrator) == true;
+
+    /// <summary>A user is locked to one branch only when assigned a godown AND not elevated.</summary>
+    private bool IsBranchLocked => UserGodownId is not null && !IsElevated;
+
+    public bool CanAccessAllBranches => !IsBranchLocked;
 
     public Guid? EffectiveGodownId
     {
         get
         {
-            if (UserGodownId is Guid assigned)
-                return assigned;
+            // Operational (branch-locked) users always see only their godown.
+            if (IsBranchLocked)
+                return UserGodownId;
 
+            // Elevated/company-wide users may optionally filter by a branch.
             var ctx = _http.HttpContext;
             if (ctx is null) return null;
 
@@ -34,7 +47,7 @@ public class BranchScope : IBranchScope
     }
 
     public bool CanUseGodown(Guid godownId) =>
-        UserGodownId is null || UserGodownId == godownId;
+        !IsBranchLocked || UserGodownId == godownId;
 
     private Guid? ParseClaimGodown()
     {

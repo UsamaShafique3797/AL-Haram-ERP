@@ -8,7 +8,10 @@ import { ExpenseCategoryService } from '../../core/services/expense-category.ser
 import { PaymentAccountService } from '../../core/services/payment-account.service';
 import { FileService } from '../../core/services/file.service';
 import { AccessService } from '../../core/services/access.service';
-import { ExpenseCategoryDto, ExpenseDto, PaymentAccountDto } from '../../core/models/domain.models';
+import { AuthService } from '../../core/services/auth.service';
+import { BranchContextService } from '../../core/services/branch-context.service';
+import { GodownService } from '../../core/services/godown.service';
+import { ExpenseCategoryDto, ExpenseDto, GodownDto, PaymentAccountDto } from '../../core/models/domain.models';
 
 import { GridSearchBarComponent } from '../../shared/grid-search-bar.component';
 import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.util';
@@ -97,6 +100,14 @@ import { filterByGridSearch, gridEmptyMessage } from '../../shared/grid-search.u
                   @if (form.value.attachmentPath) { <span class="muted">{{ form.value.attachmentPath }}</span> }
                 </div>
               </div>
+              @if (showBranch()) {
+                <div class="field">
+                  <label>Branch</label>
+                  <select formControlName="godownId">
+                    @for (g of godowns(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
+                  </select>
+                </div>
+              }
               <div class="field"><label>Notes</label><input formControlName="notes" /></div>
               <div class="row" style="justify-content:flex-end;margin-top:1rem">
                 <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
@@ -124,12 +135,17 @@ export class ExpensesComponent implements OnInit {
   private categoryService = inject(ExpenseCategoryService);
   private accountService = inject(PaymentAccountService);
   private fileService = inject(FileService);
+  private auth = inject(AuthService);
+  private branchContext = inject(BranchContextService);
+  private godownService = inject(GodownService);
 
   expenses = signal<ExpenseDto[]>([]);
   searchTerm = signal('');
   filteredRows = computed(() => filterByGridSearch(this.expenses(), this.searchTerm()));
   categories = signal<ExpenseCategoryDto[]>([]);
   accounts = signal<PaymentAccountDto[]>([]);
+  godowns = signal<GodownDto[]>([]);
+  showBranch = computed(() => !!this.auth.user()?.canAccessAllBranches);
   ready = signal(false);
   showForm = signal(false);
   loading = signal(false);
@@ -143,6 +159,7 @@ export class ExpensesComponent implements OnInit {
     expenseCategoryId: ['', Validators.required],
     amount: [0, [Validators.required, Validators.min(0.01)]],
     paymentAccountId: ['', Validators.required],
+    godownId: [''],
     notes: [''],
     attachmentPath: [''],
   });
@@ -154,11 +171,13 @@ export class ExpensesComponent implements OnInit {
       expenses: this.expenseService.getAll(),
       categories: this.categoryService.getAll(),
       accounts: this.accountService.getAll(),
+      godowns: this.godownService.getAllUnscoped(),
     }).subscribe({
       next: (d) => {
         this.expenses.set(d.expenses);
         this.categories.set(d.categories.filter((c) => c.isActive));
         this.accounts.set(d.accounts.filter((a) => a.isActive));
+        this.godowns.set(d.godowns.filter((g) => g.isActive));
         this.ready.set(true);
       },
       error: () => this.error.set('Could not load expenses.'),
@@ -177,6 +196,7 @@ export class ExpensesComponent implements OnInit {
       expenseCategoryId: '',
       amount: 0,
       paymentAccountId: this.accounts().find((a) => a.isDefault)?.id ?? '',
+      godownId: this.defaultBranchId(),
       notes: '',
       attachmentPath: '',
     });
@@ -191,10 +211,15 @@ export class ExpensesComponent implements OnInit {
       expenseCategoryId: e.expenseCategoryId,
       amount: e.amount,
       paymentAccountId: e.paymentAccountId,
+      godownId: e.godownId ?? this.defaultBranchId(),
       notes: e.notes ?? '',
       attachmentPath: e.attachmentPath ?? '',
     });
     this.showForm.set(true);
+  }
+
+  private defaultBranchId(): string {
+    return this.branchContext.selectedGodownId() ?? this.godowns().find((g) => g.isDefault)?.id ?? this.godowns()[0]?.id ?? '';
   }
 
   save(): void {

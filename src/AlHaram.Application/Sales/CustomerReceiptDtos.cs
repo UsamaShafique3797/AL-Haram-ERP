@@ -23,7 +23,9 @@ public record CustomerReceiptDto(
     decimal Unallocated,
     string? Reference,
     string? Notes,
-    IReadOnlyList<ReceiptAllocationDto> Allocations);
+    IReadOnlyList<ReceiptAllocationDto> Allocations,
+    Guid? GodownId = null,
+    string? GodownName = null);
 
 public record SaveReceiptAllocationRequest(
     Guid SalesInvoiceId,
@@ -37,7 +39,8 @@ public record SaveCustomerReceiptRequest(
     decimal Amount,
     string? Reference,
     string? Notes,
-    IReadOnlyList<SaveReceiptAllocationRequest> Allocations);
+    IReadOnlyList<SaveReceiptAllocationRequest> Allocations,
+    Guid? GodownId = null);
 
 public interface ICustomerReceiptService
 {

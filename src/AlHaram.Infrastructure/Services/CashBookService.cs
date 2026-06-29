@@ -1,5 +1,7 @@
+using AlHaram.Application.Common;
 using AlHaram.Application.Finance;
 using AlHaram.Domain.Enums;
+using AlHaram.Infrastructure.Auth;
 using AlHaram.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,8 +10,13 @@ namespace AlHaram.Infrastructure.Services;
 public class CashBookService : ICashBookService
 {
     private readonly AppDbContext _db;
+    private readonly IBranchScope _branch;
 
-    public CashBookService(AppDbContext db) => _db = db;
+    public CashBookService(AppDbContext db, IBranchScope branch)
+    {
+        _db = db;
+        _branch = branch;
+    }
 
     public async Task<IReadOnlyList<CashBookDto>> GetAllAsync(DateTime? from = null, DateTime? to = null, CancellationToken ct = default)
     {
@@ -36,9 +43,12 @@ public class CashBookService : ICashBookService
         if (account is null) return null;
 
         var txnQuery = _db.CashBankTransactions
-            .Where(t => t.PaymentAccountId == paymentAccountId);
+            .Where(t => t.PaymentAccountId == paymentAccountId)
+            .ForBranch(_branch);
 
-        decimal priorBalance = account.OpeningBalance;
+        // Opening balances are company-wide; a single-branch view starts from zero so it
+        // shows only that branch's money movements.
+        decimal priorBalance = _branch.EffectiveGodownId is null ? account.OpeningBalance : 0m;
         if (from is not null)
         {
             priorBalance += await txnQuery

@@ -24,7 +24,7 @@ public class CompanyController : ControllerBase
         => Ok(await _company.GetAsync(ct));
 
     [HttpPut]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Update([FromBody] UpdateCompanyRequest request, CancellationToken ct)
         => Ok(await _company.UpdateAsync(request, ct));
 }

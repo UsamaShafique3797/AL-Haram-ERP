@@ -26,7 +26,7 @@ public class PaymentAccountsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Create([FromBody] SavePaymentAccountRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);
@@ -34,7 +34,7 @@ public class PaymentAccountsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SavePaymentAccountRequest request, CancellationToken ct)
     {
         var result = await _service.UpdateAsync(id, request, ct);

@@ -213,6 +213,7 @@ public class SalesInvoiceService : ISalesInvoiceService
             _db.CashBankTransactions.Add(new CashBankTransaction
             {
                 PaymentAccountId = accountId,
+                GodownId = invoice.GodownId,
                 Date = request.Date,
                 Source = CashBankSource.CashSale,
                 Amount = request.PaidAmount,

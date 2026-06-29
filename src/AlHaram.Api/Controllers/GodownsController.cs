@@ -18,6 +18,12 @@ public class GodownsController : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken ct)
         => Ok(await _godowns.GetAllAsync(ct));
 
+    // All godowns regardless of branch scope — needed so a branch user can pick a
+    // transfer destination outside their own godown.
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAllUnscoped(CancellationToken ct)
+        => Ok(await _godowns.GetAllUnscopedAsync(ct));
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
@@ -26,7 +32,7 @@ public class GodownsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Create([FromBody] SaveGodownRequest request, CancellationToken ct)
     {
         var created = await _godowns.CreateAsync(request, ct);
@@ -34,7 +40,7 @@ public class GodownsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveGodownRequest request, CancellationToken ct)
     {
         var updated = await _godowns.UpdateAsync(id, request, ct);
@@ -42,7 +48,7 @@ public class GodownsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var ok = await _godowns.DeleteAsync(id, ct);

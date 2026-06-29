@@ -71,7 +71,7 @@ public record QuotationDto(
     string Number,
     DateTime Date,
     DateTime? ValidUntil,
-    Guid CustomerId,
+    Guid? CustomerId,
     string CustomerName,
     QuotationStatus Status,
     decimal Subtotal,
@@ -94,11 +94,12 @@ public record SaveQuotationLineRequest(
 public record SaveQuotationRequest(
     DateTime Date,
     DateTime? ValidUntil,
-    Guid CustomerId,
+    string CustomerName,
     decimal Discount,
     decimal TaxRate,
     string? Notes,
-    IReadOnlyList<SaveQuotationLineRequest> Lines);
+    IReadOnlyList<SaveQuotationLineRequest> Lines,
+    Guid? CustomerId = null);
 
 public interface IQuotationService
 {

@@ -1,4 +1,4 @@
-# Deploy Al-Haram POS to Azure (App Service F1 free + Azure SQL Basic)
+# Deploy Al-Haram POS to Azure (App Service F1 free + Azure SQL free offer)
 # Prerequisites: az login, dotnet 9 SDK, Node.js 22+
 #
 # Usage:
@@ -12,7 +12,8 @@ param(
     [string]$ResourceGroup = "alharam-pos-rg",
     [string]$Location = "westeurope",
     [string]$AppName = "",
-    [string]$SqlAdminUser = "sqladmin"
+    [string]$SqlAdminUser = "sqladmin",
+    [switch]$UsePaidSql
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,7 +56,12 @@ if ($confirm -notmatch '^[yY]') { Write-Host "Cancelled."; exit 0 }
 Write-Host "`n[1/8] Creating resource group..." -ForegroundColor Green
 az group create --name $ResourceGroup --location $Location --output none
 
-Write-Host "[2/8] Creating SQL server + database (Basic tier ~`$5/mo)..." -ForegroundColor Green
+if ($UsePaidSql) {
+    Write-Host "[2/8] Creating SQL server + database (Basic tier ~`$5/mo)..." -ForegroundColor Green
+} else {
+    Write-Host "[2/8] Creating SQL server + database (free offer — 100k vCore-sec/mo, 32 GB)..." -ForegroundColor Green
+}
+
 az sql server create `
     --resource-group $ResourceGroup `
     --name $SqlServerName `
@@ -72,13 +78,27 @@ az sql server firewall-rule create `
     --end-ip-address 0.0.0.0 `
     --output none
 
-az sql db create `
-    --resource-group $ResourceGroup `
-    --server $SqlServerName `
-    --name $SqlDbName `
-    --edition Basic `
-    --capacity 5 `
-    --output none
+if ($UsePaidSql) {
+    az sql db create `
+        --resource-group $ResourceGroup `
+        --server $SqlServerName `
+        --name $SqlDbName `
+        --edition Basic `
+        --capacity 5 `
+        --output none
+} else {
+    az sql db create `
+        --resource-group $ResourceGroup `
+        --server $SqlServerName `
+        --name $SqlDbName `
+        --edition GeneralPurpose `
+        --family Gen5 `
+        --capacity 2 `
+        --compute-model Serverless `
+        --use-free-limit `
+        --free-limit-exhaustion-behavior AutoPause `
+        --output none
+}
 
 Write-Host "[3/8] Creating App Service plan (F1 Free)..." -ForegroundColor Green
 az appservice plan create `
@@ -169,3 +189,6 @@ Write-Host "Secrets    : $SecretsFile  (DO NOT commit to git)"
 Write-Host ""
 Write-Host "First startup may take 1-2 minutes (database migration)." -ForegroundColor Yellow
 Write-Host "Free F1 tier: app may sleep when idle; first visit can be slow." -ForegroundColor Yellow
+if (-not $UsePaidSql) {
+    Write-Host "Free SQL tier: pauses when monthly vCore limit is reached; enough for demo use." -ForegroundColor Yellow
+}

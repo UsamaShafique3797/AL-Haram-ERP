@@ -149,19 +149,11 @@ public class ReportService : IReportService
         var fromDate = from.Date;
         var toDate = to.Date.AddDays(1).AddTicks(-1);
 
-        if (_branch.EffectiveGodownId is not null)
-        {
-            return new ExpenseReportDto(
-                fromDate, to.Date,
-                0, 0m,
-                Array.Empty<ExpenseReportLineDto>(),
-                Array.Empty<ProfitLossCategoryBreakdownDto>());
-        }
-
         var expenses = await _db.Expenses
             .Include(e => e.ExpenseCategory)
             .Include(e => e.PaymentAccount)
             .Where(e => e.Date >= fromDate && e.Date <= toDate)
+            .ForBranch(_branch)
             .OrderBy(e => e.Date)
             .ThenBy(e => e.Number)
             .ToListAsync(ct);

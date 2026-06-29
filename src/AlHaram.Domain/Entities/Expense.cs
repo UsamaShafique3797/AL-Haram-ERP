@@ -15,6 +15,10 @@ public class Expense : BaseEntity
 
     public decimal Amount { get; set; }
 
+    /// <summary>Branch (godown) this expense belongs to. Null only for legacy rows.</summary>
+    public Guid? GodownId { get; set; }
+    public Godown? Godown { get; set; }
+
     public Guid PaymentAccountId { get; set; }
     public PaymentAccount? PaymentAccount { get; set; }
 

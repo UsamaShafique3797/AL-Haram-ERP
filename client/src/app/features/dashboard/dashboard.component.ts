@@ -269,6 +269,18 @@ function localDateKey(d: Date): string {
 
         </div>
 
+
+
+        <div class="card card-pad chart-card">
+
+          <div class="chart-head"><h3>This month — money flow</h3></div>
+
+          @if (moneyFlow(); as cfg) { <app-chart [config]="cfg" /> }
+
+          @else { <p class="empty">No activity this month yet.</p> }
+
+        </div>
+
       </div>
 
     }
@@ -665,6 +677,8 @@ export class DashboardComponent implements OnInit {
 
   overview = signal<ChartConfiguration | null>(null);
 
+  moneyFlow = signal<ChartConfiguration | null>(null);
+
   showMoreStats = signal(false);
 
   lowStockCount = signal(0);
@@ -743,6 +757,34 @@ export class DashboardComponent implements OnInit {
     this.topCustomers.set(null);
     this.stockByCategory.set(null);
     this.stockHealth.set(null);
+    this.moneyFlow.set(null);
+
+    const s = this.summary();
+    if (s) {
+      const flow = [s.salesMonth ?? 0, s.purchasesMonth ?? 0, s.expensesMonth ?? 0, s.netProfitMonth ?? 0];
+      if (flow.some((v) => v !== 0)) {
+        this.moneyFlow.set({
+          type: 'bar',
+          data: {
+            labels: ['Sales', 'Purchases', 'Expenses', 'Net profit'],
+            datasets: [{
+              label: 'This month',
+              data: flow.map((v) => Math.round(v)),
+              backgroundColor: ['#2f9e44', '#3b6ea5', '#e67700', (s.netProfitMonth ?? 0) >= 0 ? '#16a085' : '#c0392b'],
+              borderRadius: 4,
+            }],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: (ctx) => ' Rs ' + Number(ctx.parsed.y ?? 0).toLocaleString() } },
+            },
+            scales: { y: MONEY_AXIS },
+          },
+        });
+      }
+    }
 
     const tracked = items.filter((i) => i.trackInventory);
 

@@ -371,7 +371,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 .HasForeignKey(r => r.PaymentAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            e.HasOne(r => r.Godown)
+                .WithMany()
+                .HasForeignKey(r => r.GodownId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             e.HasIndex(r => new { r.CustomerId, r.Date });
+            e.HasIndex(r => r.GodownId);
         });
 
         builder.Entity<ReceiptAllocation>(e =>
@@ -394,7 +400,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 .HasForeignKey(t => t.PaymentAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            e.HasOne(t => t.Godown)
+                .WithMany()
+                .HasForeignKey(t => t.GodownId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             e.HasIndex(t => new { t.PaymentAccountId, t.Date });
+            e.HasIndex(t => t.GodownId);
         });
     }
 
@@ -456,7 +468,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 .HasForeignKey(r => r.PaymentAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            e.HasOne(r => r.Godown)
+                .WithMany()
+                .HasForeignKey(r => r.GodownId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             e.HasIndex(r => new { r.SupplierId, r.Date });
+            e.HasIndex(r => r.GodownId);
         });
 
         builder.Entity<PaymentAllocation>(e =>
@@ -535,6 +553,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 .WithMany()
                 .HasForeignKey(x => x.PaymentAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.Godown)
+                .WithMany()
+                .HasForeignKey(x => x.GodownId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(x => x.GodownId);
 
             e.Property(x => x.AttachmentPath).HasMaxLength(500);
             e.HasIndex(x => new { x.ExpenseCategoryId, x.Date });
@@ -682,6 +707,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
         {
             e.Property(q => q.Number).IsRequired().HasMaxLength(40);
             e.HasIndex(q => q.Number).IsUnique();
+            e.Property(q => q.CustomerName).IsRequired().HasMaxLength(200);
             e.HasOne(q => q.Customer).WithMany().HasForeignKey(q => q.CustomerId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(q => q.ConvertedSalesInvoice).WithMany().HasForeignKey(q => q.ConvertedSalesInvoiceId).OnDelete(DeleteBehavior.Restrict);
         });

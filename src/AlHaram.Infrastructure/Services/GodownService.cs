@@ -31,6 +31,15 @@ public class GodownService : IGodownService
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<GodownDto>> GetAllUnscopedAsync(CancellationToken ct = default)
+    {
+        return await _db.Godowns
+            .OrderByDescending(g => g.IsDefault)
+            .ThenBy(g => g.Name)
+            .Select(g => ToDto(g))
+            .ToListAsync(ct);
+    }
+
     public async Task<GodownDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var g = await _db.Godowns.FirstOrDefaultAsync(x => x.Id == id, ct);

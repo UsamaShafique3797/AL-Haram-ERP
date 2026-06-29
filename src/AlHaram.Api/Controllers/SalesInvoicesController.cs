@@ -30,7 +30,7 @@ public class SalesInvoicesController : ControllerBase
         => Ok(await _service.GetOpenInvoicesAsync(customerId, ct));
 
     [HttpPost]
-    [Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager},{AppRoles.Salesman}")]
+    [Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager},{AppRoles.Salesman}")]
     public async Task<IActionResult> Create([FromBody] SaveSalesInvoiceRequest request, CancellationToken ct)
     {
         var result = await _service.CreateAsync(request, ct);

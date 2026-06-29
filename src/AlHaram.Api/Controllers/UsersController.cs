@@ -7,7 +7,7 @@ namespace AlHaram.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = $"{AppRoles.Owner},{AppRoles.Manager}")]
+[Authorize(Roles = $"{AppRoles.Administrator},{AppRoles.Manager}")]
 public class UsersController : ControllerBase
 {
     private readonly IIdentityService _identity;

@@ -6,6 +6,7 @@ import { GodownService } from '../../core/services/godown.service';
 import { ItemService } from '../../core/services/item.service';
 import { StockTransferService } from '../../core/services/purchasing-extra.service';
 import { AccessService } from '../../core/services/access.service';
+import { AuthService } from '../../core/services/auth.service';
 import {
   GodownDto, ItemDto, StockTransferDto, StockTransferStatus, StockTransferStatusLabels,
 } from '../../core/models/domain.models';
@@ -137,6 +138,7 @@ export class StockTransfersComponent implements OnInit {
   private transferService = inject(StockTransferService);
   private godownService = inject(GodownService);
   private itemService = inject(ItemService);
+  private auth = inject(AuthService);
 
   transfers = signal<StockTransferDto[]>([]);
   searchTerm = signal('');
@@ -168,7 +170,7 @@ export class StockTransfersComponent implements OnInit {
   ngOnInit(): void {
     this.load();
     forkJoin({
-      godowns: this.godownService.getAll(),
+      godowns: this.godownService.getAllUnscoped(),
       items: this.itemService.getAll(),
     }).subscribe(({ godowns, items }) => {
       this.godowns.set(godowns);
@@ -209,7 +211,12 @@ export class StockTransfersComponent implements OnInit {
   openNew(): void {
     this.editingId = null;
     this.formError.set(null);
-    const defaultGodown = this.godowns().find((g) => g.isDefault) ?? this.godowns()[0];
+    // Branch users transfer out of their own godown by default.
+    const user = this.auth.user();
+    const ownGodown = !user?.canAccessAllBranches && user?.godownId
+      ? this.godowns().find((g) => g.id === user.godownId)
+      : undefined;
+    const defaultGodown = ownGodown ?? this.godowns().find((g) => g.isDefault) ?? this.godowns()[0];
     const toGodown = this.godowns().find((g) => g.id !== defaultGodown?.id) ?? this.godowns()[1];
     this.lines.clear();
     this.form.reset({

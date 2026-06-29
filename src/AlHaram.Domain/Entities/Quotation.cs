@@ -9,7 +9,11 @@ public class Quotation : BaseEntity
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public DateTime? ValidUntil { get; set; }
 
-    public Guid CustomerId { get; set; }
+    /// <summary>Free-text customer name typed on the quotation (not tied to the customer master).</summary>
+    public string CustomerName { get; set; } = string.Empty;
+
+    /// <summary>Optional link to a customer record; quotations may be for walk-in / prospective buyers.</summary>
+    public Guid? CustomerId { get; set; }
     public Customer? Customer { get; set; }
 
     public QuotationStatus Status { get; set; } = QuotationStatus.Draft;

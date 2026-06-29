@@ -83,6 +83,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/sales/quotations.component').then((m) => m.QuotationsComponent),
       },
       {
+        path: 'sales/quotations/:id/print',
+        canActivate: [pathAccessGuard],
+        loadComponent: () => import('./features/sales/quotation-print.component').then((m) => m.QuotationPrintComponent),
+      },
+      {
         path: 'sales/receipts',
         canActivate: [routeAccessGuard('sales/receipts')],
         loadComponent: () => import('./features/sales/receipts.component').then((m) => m.ReceiptsComponent),
